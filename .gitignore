@@ -1,0 +1,9 @@
+# dependências e builds (os executáveis vão nas Releases do GitHub)
+node_modules/
+ui/dist/
+**/bin/
+**/obj/
+dist/
+*.user
+.vs/
+.vscode/

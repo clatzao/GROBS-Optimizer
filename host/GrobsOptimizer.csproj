@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>GROBS</AssemblyName>
+    <RootNamespace>Grobs</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64;x86</Platforms>
+    <Version>1.0.0</Version>
+    <Product>GROBS Optimizer</Product>
+    <Company>GROBS</Company>
+    <Description>GROBS Optimizer</Description>
+    <Copyright>GROBS</Copyright>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" GeneratePathProperty="true" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <Reference Include="System.Management" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\ui\dist\**\*" LinkBase="ui" LogicalName="ui/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <!-- exe único: DLLs do WebView2 vão dentro do executável -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-$(Platform)\native\WebView2Loader.dll" LogicalName="lib/WebView2Loader.dll" />
+  </ItemGroup>
+  <!-- todas as DLLs gerenciadas de referência (WebView2, LibreHardwareMonitor...) vão dentro do exe -->
+  <Target Name="EmbedReferences" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <EmbeddedResource Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Extension)' == '.dll' and '%(ReferenceCopyLocalPaths.Filename)' != 'WebView2Loader' and '%(ReferenceCopyLocalPaths.Filename)' != 'Microsoft.Web.WebView2.Wpf'" LogicalName="lib/%(ReferenceCopyLocalPaths.Filename)%(ReferenceCopyLocalPaths.Extension)" />
+    </ItemGroup>
+  </Target>
+</Project>

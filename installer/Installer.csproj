@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>GROBS-Optimizer-Setup</AssemblyName>
+    <RootNamespace>GrobsSetup</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>setup.manifest</ApplicationManifest>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <Version>1.0.0</Version>
+    <Product>GROBS Optimizer</Product>
+    <Description>Instalador do GROBS Optimizer</Description>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <PayloadDir>$(MSBuildProjectDirectory)\obj\payload</PayloadDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
+  <!-- compacta os dois executáveis (gzip) e embute no instalador -->
+  <UsingTask TaskName="GzipFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Source ParameterType="System.String" Required="true" />
+      <Destination ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.IO.Compression" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        Directory.CreateDirectory(Path.GetDirectoryName(Destination));
+        using (var i = File.OpenRead(Source))
+        using (var o = File.Create(Destination))
+        using (var g = new GZipStream(o, CompressionLevel.Optimal)) i.CopyTo(g);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="Payload" BeforeTargets="PrepareForBuild">
+    <GzipFile Source="$(MSBuildProjectDirectory)\..\dist\GROBS-Optimizer-x64.exe" Destination="$(PayloadDir)\GROBS-x64.gz" />
+    <GzipFile Source="$(MSBuildProjectDirectory)\..\dist\GROBS-Optimizer-x86.exe" Destination="$(PayloadDir)\GROBS-x86.gz" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(PayloadDir)\GROBS-x64.gz" LogicalName="GROBS-x64.gz" />
+      <EmbeddedResource Include="$(PayloadDir)\GROBS-x86.gz" LogicalName="GROBS-x86.gz" />
+    </ItemGroup>
+  </Target>
+</Project>
