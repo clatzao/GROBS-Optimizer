@@ -9,8 +9,13 @@ type StartupItem = { id: string; name: string; desc: string; company: string; si
 function StartupTab() {
   const [list, setList] = useState<StartupItem[] | null>(null);
   const admin = useStore(appStore, a => a?.admin);
-  const load = () => call<StartupItem[]>('startup.list').then(setList).catch(() => setList([]));
+  const [delays, setDelays] = useState<Record<string, { seconds: number }>>({});
+  const load = () => { call<StartupItem[]>('startup.list').then(setList).catch(() => setList([])); call<Record<string, { seconds: number }>>('startup.delays').then(d => setDelays(d ?? {})).catch(() => {}); };
   useEffect(() => { load(); }, []);
+  async function delay(it: StartupItem, seconds: number) {
+    const r = await run(call<Record<string, { seconds: number }>>('startup.delay', { id: it.id, seconds }), seconds ? `${it.desc || it.name} vai abrir ${seconds >= 60 ? seconds / 60 + ' min' : seconds + ' s'} depois do logon` : 'Atraso removido');
+    if (r) { setDelays(r); load(); }
+  }
 
   async function set(it: StartupItem, enabled: boolean) {
     setList(l => l?.map(x => (x.id === it.id ? { ...x, enabled } : x)) ?? null);
@@ -25,7 +30,7 @@ function StartupTab() {
       <div className="grid g3" style={{ marginBottom: 16 }}>
         <Card><div className="small dim">Ativos</div><div className="stat-big">{on}</div></Card>
         <Card><div className="small dim">Desativados</div><div className="stat-big">{list.length - on}</div></Card>
-        <Card><div className="small dim">Dica</div><div className="small muted" style={{ marginTop: 4 }}>Desativar não desinstala nada — o programa só deixa de abrir sozinho. Mantenha antivírus e drivers de áudio/vídeo.</div></Card>
+        <Card><div className="small dim">Dica</div><div className="small muted" style={{ marginTop: 4 }}>Desativar não desinstala nada. Para o que você precisa mas não na hora (Steam, Discord), use "Atrasar": o Windows liga mais rápido e o programa abre depois.</div></Card>
       </div>
       <Card className="pad-0">
         <Stagger className="list" delay={0.025}>
@@ -40,8 +45,14 @@ function StartupTab() {
                 </div>
                 <div className="s ellipsis" title={it.path}>{it.company || it.signer || 'Editor desconhecido'} · {it.location}</div>
               </div>
+              {delays[it.id] && <span className="chip accent"><Icon name="clock" size={11} />atrasado {delays[it.id].seconds >= 60 ? delays[it.id].seconds / 60 + ' min' : delays[it.id].seconds + ' s'}</span>}
+              {(it.enabled || delays[it.id]) && admin && (
+                <select value={delays[it.id]?.seconds ?? 0} onChange={e => delay(it, Number(e.target.value))} title="Abrir este programa alguns segundos depois do logon (o Windows liga mais rápido)" style={{ padding: '4px 8px', fontSize: 12 }}>
+                  {[[0, 'Sem atraso'], [30, 'Atrasar 30 s'], [60, 'Atrasar 1 min'], [120, 'Atrasar 2 min'], [300, 'Atrasar 5 min']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              )}
               {it.admin && !admin ? <AdminLock /> : null}
-              <Toggle on={it.enabled} onChange={v => set(it, v)} disabled={it.admin && !admin} title={it.path} />
+              <Toggle on={it.enabled} onChange={v => set(it, v)} disabled={(it.admin && !admin) || !!delays[it.id]} title={it.path} />
             </div>
           ))}
           {list.length === 0 && <div className="empty">Nenhum programa configurado para iniciar com o Windows.</div>}
@@ -197,15 +208,59 @@ function PowerTab() {
   );
 }
 
+type Prio = { exe: string; level: 'idle' | 'below' | 'normal' | 'above' | 'high' };
+const PRIO_LABEL = { idle: 'Baixa', below: 'Abaixo do normal', normal: 'Normal', above: 'Acima do normal', high: 'Alta' } as const;
+
+function PriorityTab() {
+  const admin = useStore(appStore, a => a?.admin);
+  const [list, setList] = useState<Prio[] | null>(null);
+  const [exe, setExe] = useState('');
+  const [level, setLevel] = useState<Prio['level']>('above');
+  useEffect(() => { call<Prio[]>('prio.list').then(setList).catch(() => setList([])); }, []);
+  async function set(e: string, l: string) { const r = await run(call<Prio[]>('prio.set', { exe: e, level: l }), l === 'remove' ? 'Prioridade removida' : `${e}: prioridade ${PRIO_LABEL[l as Prio['level']]}`); if (r) setList(r); }
+  async function pick() { const p = await call<string>('shell.pickExe'); if (p) setExe(p.split(/[\\/]/).pop() ?? p); }
+  return (
+    <>
+      <Card style={{ marginBottom: 16 }}>
+        <div className="row wrap">
+          <div style={{ flex: 1, minWidth: 280 }}><b>Prioridade fixa por programa</b><div className="small muted">O Windows aplica a prioridade de CPU toda vez que o programa abre — sem o GROBS precisar estar aberto. "Alta" também sobe a prioridade de disco. Evite "Alta" em programas que ficam abertos o tempo todo.</div></div>
+          {!admin && <AdminLock />}
+        </div>
+        <div className="row wrap" style={{ marginTop: 12 }}>
+          <input type="text" placeholder="programa.exe" value={exe} onChange={e => setExe(e.target.value)} style={{ width: 220 }} disabled={!admin} />
+          <button className="btn sm ghost" onClick={pick} disabled={!admin}><Icon name="folder" size={13} />Escolher…</button>
+          <select value={level} onChange={e => setLevel(e.target.value as Prio['level'])} disabled={!admin}>{(Object.keys(PRIO_LABEL) as Prio['level'][]).map(k => <option key={k} value={k}>{PRIO_LABEL[k]}</option>)}</select>
+          <button className="btn sm primary" disabled={!admin || !/\.exe$/i.test(exe.trim())} onClick={() => { set(exe.trim(), level); setExe(''); }}><Icon name="check" size={13} />Aplicar</button>
+        </div>
+      </Card>
+      <Card className="pad-0">
+        {!list ? <div className="empty"><Spinner /></div> : list.length === 0 ? <div className="empty">Nenhum programa com prioridade fixa. Jogos otimizados na aba Gamer aparecem aqui.</div> : (
+          <div className="list">
+            {list.map(p => (
+              <div key={p.exe} className="li">
+                <Icon name="cpu" size={16} className="muted" />
+                <div className="grow t mono" style={{ fontSize: 13 }}>{p.exe}</div>
+                <select value={p.level} onChange={e => set(p.exe, e.target.value)} disabled={!admin}>{(Object.keys(PRIO_LABEL) as Prio['level'][]).map(k => <option key={k} value={k}>{PRIO_LABEL[k]}</option>)}</select>
+                <button className="btn sm ghost iconbtn" title="Remover" onClick={() => set(p.exe, 'remove')} disabled={!admin}><Icon name="x" size={14} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </>
+  );
+}
+
 export default function Optimize() {
-  const [tab, setTab] = useState<'startup' | 'tweaks' | 'power'>('startup');
+  const [tab, setTab] = useState<'startup' | 'tweaks' | 'power' | 'prio'>('startup');
   return (
     <div className="page">
       <PageHead title="Otimização" sub="Ajustes reais e reversíveis — inicialização, Windows e energia."
-        right={<Tabs layoutId="opttab" value={tab} onChange={setTab} items={[{ id: 'startup', label: 'Inicialização' }, { id: 'tweaks', label: 'Ajustes do Windows' }, { id: 'power', label: 'Energia e Turbo' }]} />} />
+        right={<Tabs layoutId="opttab" value={tab} onChange={setTab} items={[{ id: 'startup', label: 'Inicialização' }, { id: 'tweaks', label: 'Ajustes do Windows' }, { id: 'power', label: 'Energia e Turbo' }, { id: 'prio', label: 'Prioridade' }]} />} />
       {tab === 'startup' && <StartupTab />}
       {tab === 'tweaks' && <TweaksTab />}
       {tab === 'power' && <PowerTab />}
+      {tab === 'prio' && <PriorityTab />}
     </div>
   );
 }

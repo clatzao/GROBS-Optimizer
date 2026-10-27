@@ -294,16 +294,34 @@ namespace Grobs
             return List();
         }
 
-        /// <summary>Liga o Modo Turbo quando um jogo com "Turbo automático" abre e desliga quando fecha (verifica a cada 5 s).</summary>
+        /// <summary>Executáveis de todos os jogos conhecidos (cache de 10 min: a busca nas lojas lê o disco).</summary>
+        static List<string> _known; static DateTime _knownAt;
+        internal static List<string> KnownExes()
+        {
+            if (_known == null || (DateTime.Now - _knownAt).TotalMinutes > 10)
+            {
+                try { _known = ((IEnumerable)((Dictionary<string, object>)List())["games"]).Cast<Dictionary<string, object>>().Select(g => (string)g["exe"]).ToList(); }
+                catch { _known = _known ?? new List<string>(); }
+                _knownAt = DateTime.Now;
+            }
+            return _known;
+        }
+
+        /// <summary>
+        /// Verifica a cada 5 s se um jogo abriu: Turbo automático (por jogo), Modo Jogo automático e gravação de FPS (todos os jogos).
+        /// </summary>
         internal static class Watcher
         {
             static Timer _timer;
             static string _activeExe;
+            static bool _turbo;
+
+            static List<string> TurboTargets() => Profiles().Where(kv => kv.Value is Dictionary<string, object> d && d.ContainsKey("autoTurbo") && Convert.ToBoolean(d["autoTurbo"])).Select(kv => kv.Key).ToList();
+            static bool AllGames() => GameMode.Enabled || FpsLog.Enabled;
 
             public static void Refresh()
             {
-                var targets = Profiles().Where(kv => kv.Value is Dictionary<string, object> d && d.ContainsKey("autoTurbo") && Convert.ToBoolean(d["autoTurbo"])).Select(kv => kv.Key).ToList();
-                if (targets.Count == 0) { _timer?.Dispose(); _timer = null; return; }
+                if (TurboTargets().Count == 0 && !AllGames()) { _timer?.Dispose(); _timer = null; return; }
                 if (_timer == null) _timer = new Timer(_ => Tick(), null, 2000, 5000);
             }
 
@@ -311,21 +329,35 @@ namespace Grobs
             {
                 try
                 {
-                    var targets = Profiles().Where(kv => kv.Value is Dictionary<string, object> d && d.ContainsKey("autoTurbo") && Convert.ToBoolean(d["autoTurbo"])).Select(kv => kv.Key).ToList();
-                    string running = targets.FirstOrDefault(t => { var ps = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(t)); bool r = ps.Length > 0; foreach (var p in ps) p.Dispose(); return r; });
+                    var turbo = TurboTargets();
+                    var targets = new HashSet<string>(turbo, StringComparer.OrdinalIgnoreCase);
+                    if (AllGames()) foreach (var e in KnownExes()) targets.Add(e);
+                    var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var p in Process.GetProcesses()) using (p) names.Add(p.ProcessName);
+                    string running = _activeExe != null && names.Contains(Path.GetFileNameWithoutExtension(_activeExe)) ? _activeExe
+                        : targets.FirstOrDefault(t => names.Contains(Path.GetFileNameWithoutExtension(t)));
                     if (running != null && _activeExe == null)
                     {
                         _activeExe = running;
-                        var apps = Settings.Get<object>("boostApps") as IEnumerable;
-                        if (!Boost.Active) Boost.Start(apps?.Cast<object>().Select(Convert.ToString).ToArray());
-                        Program.Window?.Notify("boost", Boost.Status());
+                        _turbo = turbo.Contains(running, StringComparer.OrdinalIgnoreCase);
+                        if (_turbo && !Boost.Active)
+                        {
+                            var apps = Settings.Get<object>("boostApps") as IEnumerable;
+                            Boost.Start(apps?.Cast<object>().Select(Convert.ToString).ToArray());
+                            Program.Window?.Notify("boost", Boost.Status());
+                        }
+                        if (GameMode.Enabled) GameMode.Enter(!_turbo);
+                        else MemoryCleaner.OnGameStart();
+                        if (FpsLog.Enabled) FpsLog.Begin(running, 0);
                         Program.Window?.Notify("gameStarted", Path.GetFileNameWithoutExtension(running));
                     }
                     else if (running == null && _activeExe != null)
                     {
                         _activeExe = null;
-                        if (Boost.Active) Boost.Stop();
-                        Program.Window?.Notify("boost", Boost.Status());
+                        if (_turbo && Boost.Active) { Boost.Stop(); Program.Window?.Notify("boost", Boost.Status()); }
+                        _turbo = false;
+                        GameMode.Exit();
+                        FpsLog.End();
                     }
                 }
                 catch (Exception ex) { Program.Log(ex); }

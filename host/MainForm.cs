@@ -87,7 +87,11 @@ namespace Grobs
             {
                 try { _monitor = new Monitor(); _monitor.Sample(); } catch (Exception ex) { Program.Log(ex); }
                 if (Program.IsAdmin && Settings.Get<bool>("sensorsAuto")) Sensors.Start(); // temperatura real da CPU no painel
-                Games.Watcher.Refresh(); // Turbo automático por jogo
+                Games.Watcher.Refresh(); // Turbo automático, Modo Jogo e gravação de FPS
+                MemoryCleaner.StartAuto();
+                TimerRes.Restore();
+                Smart.StartAlerts();
+                Updater.StartAuto();
                 RestartTimer();
                 if (Convert.ToBoolean(Overlay.Config()["enabled"])) Overlay.Apply();
             });
@@ -137,6 +141,34 @@ namespace Grobs
         }
 
         static void Try(Action a) { try { a(); } catch { } }
+
+        /// <summary>Atualização encontrada pela checagem automática: avisa a interface e, se o app estiver na bandeja, mostra um balão.</summary>
+        public void UpdateAvailable(Dictionary<string, object> info)
+        {
+            Notify("update", info);
+            if (!_visibleUi) Balloon("GROBS Optimizer " + info["version"] + " disponível", "Abra o GROBS para atualizar com um clique.", false);
+        }
+
+        /// <summary>Encerra de verdade (ignora "fechar para a bandeja") — usado pela atualização.</summary>
+        public void ExitNow() { _exiting = true; Close(); }
+
+        /// <summary>Notificação do Windows (balão da bandeja). Usa o ícone da bandeja se existir; senão cria um temporário.</summary>
+        public void Balloon(string title, string text, bool warn)
+        {
+            if (IsDisposed) return;
+            BeginInvoke((Action)(() =>
+            {
+                var icon = warn ? ToolTipIcon.Warning : ToolTipIcon.Info;
+                if (_tray != null) { _tray.ShowBalloonTip(6000, title, text, icon); return; }
+                var tmp = new NotifyIcon { Icon = Icon, Text = "GROBS Optimizer", Visible = true };
+                tmp.BalloonTipClosed += (o, e) => tmp.Dispose();
+                tmp.BalloonTipClicked += (o, e) => { ShowFromTray(); tmp.Dispose(); };
+                tmp.ShowBalloonTip(6000, title, text, icon);
+                var t = new System.Windows.Forms.Timer { Interval = 9000 };
+                t.Tick += (o, e) => { t.Dispose(); tmp.Visible = false; tmp.Dispose(); };
+                t.Start();
+            }));
+        }
 
         /// <summary>Usado pelo overlay: coleta mesmo com a janela principal oculta.</summary>
         public Dictionary<string, object> LatestStats() => _monitor?.Latest(900);
@@ -347,6 +379,80 @@ namespace Grobs
 
                 { "shell.reveal", p => { var f = Str(p, "path"); if (File.Exists(f) || Directory.Exists(f)) System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + f + "\""); return true; } },
                 { "shell.pickFolder", p => (string)Invoke((Func<string>)(() => { using (var d = new FolderBrowserDialog { Description = "Escolha uma pasta" }) return d.ShowDialog(this) == DialogResult.OK ? d.SelectedPath : null; })) },
+
+                { "update.check", p => Updater.Check() },
+                { "update.status", p => Updater.Status() },
+                { "update.install", p => Updater.Install() },
+
+                { "ram.status", p => MemoryCleaner.Status() },
+                { "ram.clean", p => MemoryCleaner.Clean(Bool(p, "workingSets")) },
+                { "ram.config", p => { Settings.Set("ramAuto", p["config"]); MemoryCleaner.StartAuto(); return MemoryCleaner.Status(); } },
+                { "timer.status", p => TimerRes.Status() },
+                { "timer.set", p => TimerRes.Set(Bool(p, "on")) },
+                { "msi.list", p => Latency.MsiList() },
+                { "msi.set", p => { RestorePoints.Ensure(); return Latency.MsiSet(Str(p, "id"), Bool(p, "on")); } },
+                { "parking.status", p => Latency.ParkingStatus() },
+                { "parking.set", p => { if (!Program.IsAdmin) throw new UnauthorizedAccessException("Requer administrador"); RestorePoints.Ensure(); return Latency.ParkingSet(Bool(p, "off")); } },
+                { "pagefile.status", p => Pagefile.Status() },
+                { "pagefile.set", p => { RestorePoints.Ensure(); return Pagefile.Set(Bool(p, "auto"), Str(p, "drive"), Int(p, "initial"), Int(p, "max")); } },
+                { "pagefile.compression", p => Pagefile.SetCompression(Bool(p, "on")) },
+                { "nettune.status", p => NetTune.Status() },
+                { "nettune.set", p => NetTune.Set(Str(p, "what"), Bool(p, "on")) },
+                { "nettune.flush", p => NetTune.FlushAll() },
+
+                { "smart.read", p => Smart.Read() },
+                { "dbench.start", p => DiskBench.Start(Str(p, "drive"), Int(p, "size"), Int(p, "passes"), Bool(p, "quick")) },
+                { "dbench.status", p => DiskBench.Status() },
+                { "dbench.cancel", p => DiskBench.Cancel() },
+                { "drives.status", p => DriveOptimizer.Status() },
+                { "drives.optimize", p => DriveOptimizer.Optimize(Str(p, "drive")) },
+                { "drives.trim", p => DriveOptimizer.SetTrim(Bool(p, "on")) },
+                { "drives.indexing", p => DriveOptimizer.SetIndexing(Bool(p, "on")) },
+
+                { "bench.start", p => Bench.Start(Bool(p, "cpu"), Bool(p, "ram"), Bool(p, "disk")) },
+                { "bench.status", p => Bench.Status() },
+
+                { "gamemode.status", p => GameMode.Status() },
+                { "gamemode.config", p => GameMode.SetConfig(p["config"] as Dictionary<string, object> ?? new Dictionary<string, object>()) },
+                { "fpslog.status", p => FpsLog.Status() },
+                { "fpslog.enable", p => FpsLog.SetEnabled(Bool(p, "on")) },
+                { "fpslog.analyze", p => FpsLog.Analyze(Int(p, "seconds")) },
+                { "fpslog.stop", p => FpsLog.Stop() },
+                { "fpslog.list", p => FpsLog.List() },
+                { "fpslog.get", p => FpsLog.Get(Str(p, "id")) },
+                { "fpslog.delete", p => FpsLog.Delete(Str(p, "id")) },
+
+                { "prio.list", p => AppPriority.List() },
+                { "prio.set", p => AppPriority.Set(Str(p, "exe"), Str(p, "level")) },
+                { "startup.delays", p => StartupDelay.List() },
+                { "startup.delay", p => StartupDelay.Set(Str(p, "id"), Int(p, "seconds")) },
+                { "rp.status", p => RestorePoints.Status() },
+                { "rp.create", p => RestorePoints.Create(Str(p, "desc")) },
+                { "rp.restore", p => RestorePoints.Restore(Convert.ToInt64(p["seq"])) },
+                { "rp.enable", p => RestorePoints.EnableProtection() },
+                { "profiles.status", p => Profiles.Status() },
+                { "profiles.apply", p => Profiles.Apply(Str(p, "id")) },
+                { "profiles.undo", p => Profiles.Undo() },
+                { "cleansched.status", p => CleanSchedule.Status() },
+                { "cleansched.set", p => CleanSchedule.Set(Str(p, "freq"), Str(p, "time"), Arr(p, "ids")) },
+                { "battery.report", p => BatteryReport.Open() },
+                { "backup.export", p => (object)Invoke((Func<object>)(() => {
+                    using (var d = new SaveFileDialog { Filter = "Backup do GROBS (*.grobs.json)|*.grobs.json", FileName = "GROBS-" + Environment.MachineName + "-" + DateTime.Now.ToString("yyyy-MM-dd") + ".grobs.json" })
+                    { if (d.ShowDialog(this) != DialogResult.OK) return null; File.WriteAllText(d.FileName, Backup.Build()); return d.FileName; } })) },
+                { "backup.import", p => {
+                    string f = (string)Invoke((Func<string>)(() => { using (var d = new OpenFileDialog { Filter = "Backup do GROBS (*.grobs.json;*.json)|*.grobs.json;*.json" }) return d.ShowDialog(this) == DialogResult.OK ? d.FileName : null; }));
+                    return f == null ? null : Backup.Import(f); } },
+
+                { "dup.folders", p => Duplicates.DefaultFolders() },
+                { "dup.start", p => Duplicates.Start(Arr(p, "folders"), Int(p, "minKb")) },
+                { "dup.status", p => Duplicates.Status() },
+                { "dup.cancel", p => Duplicates.Cancel() },
+                { "dup.delete", p => Duplicates.Delete(Arr(p, "paths")) },
+                { "repair.start", p => Repair.Start(Str(p, "id")) },
+                { "repair.status", p => Repair.Status() },
+                { "winget.list", p => Winget.List() },
+                { "winget.upgrade", p => Winget.Upgrade(Arr(p, "ids")) },
+                { "winget.status", p => Winget.Status() },
             };
         }
 
@@ -444,6 +550,13 @@ namespace Grobs
                 Notify("boost", r);
                 BeginInvoke((Action)(() => _tray.ShowBalloonTip(2000, "GROBS", Boost.Active ? "Modo Turbo ativado" : "Modo Turbo desativado", ToolTipIcon.Info)));
             }));
+            menu.Items.Add("Liberar memória RAM", null, (s, e) => Task.Run(() =>
+            {
+                string msg;
+                try { var r = (Dictionary<string, object>)MemoryCleaner.Clean(false); msg = Math.Round(Convert.ToDouble(r["freed"]) / 1048576) + " MB liberados"; }
+                catch (Exception ex) { msg = ex.Message; }
+                Balloon("GROBS", msg, false);
+            }));
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("Sair", null, (s, e) => { _exiting = true; Close(); });
             _tray = new NotifyIcon { Icon = Icon, Text = "GROBS Optimizer", Visible = true, ContextMenuStrip = menu };
@@ -472,6 +585,7 @@ namespace Grobs
                 e.Cancel = true; CreateTray(); Hide(); SetUiVisible(false); return;
             }
             if (Boost.Active) Boost.Stop();
+            try { FpsLog.End(); GameMode.Exit(); } catch { }
             _timer?.Dispose();
             _monitor?.Dispose();
             if (_tray != null) { _tray.Visible = false; _tray.Dispose(); }

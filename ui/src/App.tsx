@@ -5,7 +5,7 @@ import { Icon } from './components/Icon';
 import ShinyText from './components/rb/ShinyText';
 import ClickSpark from './components/rb/ClickSpark';
 import { Spinner, Toasts } from './components/ui';
-import { appStore, boostStore, statsStore, useStore } from './store';
+import { appStore, boostStore, statsStore, toast, useStore } from './store';
 import { pct } from './format';
 import Dashboard from './pages/Dashboard';
 import logo from './assets/logo.png';
@@ -31,34 +31,44 @@ const Overclock = lazy(() => import('./pages/Overclock'));
 const Beautify = lazy(() => import('./pages/Beautify'));
 const Debloat = lazy(() => import('./pages/Debloat'));
 const Gamer = lazy(() => import('./pages/Gamer'));
+const Perf = lazy(() => import('./pages/Perf'));
+const Disks = lazy(() => import('./pages/Disks'));
+const Repair = lazy(() => import('./pages/Repair'));
+const Bench = lazy(() => import('./pages/Bench'));
+const Profiles = lazy(() => import('./pages/Profiles'));
 
 export type PageId = 'dash' | 'monitor' | 'diagnose' | 'clean' | 'optimize' | 'services' | 'debloat' | 'visual' | 'update' | 'security'
-  | 'gamer' | 'overlay' | 'oc' | 'drivers' | 'apps' | 'disk' | 'beautify' | 'tools' | 'settings';
+  | 'gamer' | 'overlay' | 'oc' | 'drivers' | 'apps' | 'disk' | 'beautify' | 'tools' | 'settings' | 'perf' | 'disks' | 'repair' | 'bench' | 'profiles';
 
 // mod = módulo escolhido no instalador (sem lista de módulos = tudo instalado)
 const NAV: { id: PageId; label: string; icon: string; section?: string; mod?: string }[] = [
   { id: 'dash', label: 'Painel', icon: 'dashboard' },
   { id: 'monitor', label: 'Monitor', icon: 'activity', mod: 'monitor' },
   { id: 'diagnose', label: 'Diagnóstico', icon: 'heart', mod: 'repair' },
+  { id: 'repair', label: 'Reparar o Windows', icon: 'wrench', mod: 'repair' },
   { id: 'clean', label: 'Limpeza', icon: 'broom', section: 'Manutenção', mod: 'clean' },
   { id: 'optimize', label: 'Otimização', icon: 'rocket', mod: 'optimize' },
+  { id: 'profiles', label: 'Perfis 1 clique', icon: 'layers', mod: 'optimize' },
+  { id: 'perf', label: 'Memória e latência', icon: 'memory', mod: 'optimize' },
   { id: 'services', label: 'Serviços', icon: 'list', mod: 'optimize' },
   { id: 'debloat', label: 'Recursos do Windows', icon: 'package', mod: 'optimize' },
   { id: 'visual', label: 'Efeitos visuais', icon: 'eye', mod: 'optimize' },
   { id: 'update', label: 'Windows Update', icon: 'refresh', mod: 'update' },
   { id: 'security', label: 'Segurança', icon: 'shield', mod: 'security' },
   { id: 'gamer', label: 'Gamer', icon: 'rocket', section: 'Jogos', mod: 'gamer' },
+  { id: 'bench', label: 'Benchmark', icon: 'gauge', mod: 'gamer' },
   { id: 'overlay', label: 'Overlay de FPS', icon: 'gamepad', mod: 'overlay' },
   { id: 'oc', label: 'Overclock (GPU)', icon: 'zap', mod: 'oc' },
   { id: 'drivers', label: 'Drivers', icon: 'cpu', section: 'Ferramentas', mod: 'drivers' },
   { id: 'apps', label: 'Programas', icon: 'package', mod: 'tools' },
+  { id: 'disks', label: 'Discos', icon: 'disk', mod: 'tools' },
   { id: 'disk', label: 'Espaço em disco', icon: 'pie', mod: 'tools' },
   { id: 'beautify', label: 'Embelezar', icon: 'sparkles', mod: 'beautify' },
   { id: 'tools', label: 'Utilitários', icon: 'wrench', mod: 'tools' },
   { id: 'settings', label: 'Configurações', icon: 'settings', section: '' },
 ];
 
-function TitleBar({ maximized }: { maximized: boolean }) {
+function TitleBar({ maximized, update, go }: { maximized: boolean; update: string | null; go: (p: PageId) => void }) {
   const app = useStore(appStore);
   const boost = useStore(boostStore);
   return (
@@ -73,6 +83,7 @@ function TitleBar({ maximized }: { maximized: boolean }) {
         {app && <span className="chip">v{app.version} · {app.proc64 ? 'x64' : 'x86'}</span>}
         {app && (app.admin ? <span className="chip ok"><Icon name="shieldCheck" size={11} />Administrador</span> : <span className="chip">Usuário padrão</span>)}
         {boost && <span className="chip accent pulse"><Icon name="rocket" size={11} />Turbo ativo</span>}
+        {update && <button className="chip ok" style={{ cursor: 'pointer' }} onMouseDown={e => e.stopPropagation()} onClick={() => go('settings')}><Icon name="download" size={11} />Atualização {update} disponível</button>}
       </div>
       <div className="winbtns">
         <button title="Minimizar" onClick={() => call('win.minimize')}><Icon name="minus" size={15} /></button>
@@ -132,6 +143,8 @@ export default function App() {
   const app = useStore(appStore);
   const [page, setPage] = useState<PageId>('dash');
   const [maximized, setMaximized] = useState(false);
+  const [update, setUpdate] = useState<string | null>(null);
+  useEffect(() => on('update', (u: { version: string; available: boolean }) => { if (u?.available) { setUpdate(u.version); toast(`GROBS Optimizer ${u.version} disponível — atualize em Configurações`, 'info'); } }), []);
   const anim = app?.settings.animations ?? 'full';
 
   useEffect(() => on('maximized', (m: boolean) => setMaximized(!!m)), []);
@@ -165,13 +178,18 @@ export default function App() {
       case 'oc': return <Overclock />;
       case 'drivers': return <Drivers />;
       case 'beautify': return <Beautify />;
+      case 'perf': return <Perf />;
+      case 'disks': return <Disks />;
+      case 'repair': return <Repair />;
+      case 'bench': return <Bench />;
+      case 'profiles': return <Profiles />;
     }
   })();
 
   const content = (
     <div key={anim} className={`app ${maximized ? "max" : ""}`}>
       <div className="aurora"><i /><i /><i /></div>
-      <TitleBar maximized={maximized} />
+      <TitleBar maximized={maximized} update={update} go={setPage} />
       <div className="body">
         <Sidebar page={page} go={setPage} />
         <main className="main">

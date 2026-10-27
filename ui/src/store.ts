@@ -12,7 +12,7 @@ export type Stats = {
 };
 
 export type AppInfo = { version: string; admin: boolean; proc64: boolean; os64: boolean; dev: boolean; settings: Settings };
-export type Settings = { animations: 'full' | 'reduced' | 'off'; interval: number; trayOnClose: boolean; startWithWindows: boolean; tempUnit: 'C' | 'F'; boostApps: string[]; modules?: string[]; modulesUser?: string[]; killHotkey?: boolean; sensorsAuto?: boolean };
+export type Settings = { animations: 'full' | 'reduced' | 'off'; interval: number; trayOnClose: boolean; startWithWindows: boolean; tempUnit: 'C' | 'F'; boostApps: string[]; modules?: string[]; modulesUser?: string[]; killHotkey?: boolean; sensorsAuto?: boolean; autoUpdate?: boolean; diskAlerts?: boolean; autoRestorePoint?: boolean; benchHistory?: unknown[] };
 
 /** Store mínimo: cada componente assina só o pedaço que usa. */
 function createStore<T>(initial: T) {

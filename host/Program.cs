@@ -11,7 +11,7 @@ namespace Grobs
 {
     internal static class Program
     {
-        public const string Version = "1.0.0";
+        public const string Version = "1.1.0";
         public static readonly bool IsAdmin = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
         public static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GROBS");
         public static MainForm Window;
@@ -27,7 +27,7 @@ namespace Grobs
             if (ti >= 0 && ti + 1 < args.Length)
             {
                 Directory.CreateDirectory(DataDir);
-                try { if (args[ti + 1] == "clean-wu") WinUpdate.CleanCache(); } catch (Exception ex) { Log(ex); }
+                try { if (args[ti + 1] == "clean-wu") WinUpdate.CleanCache(); else if (args[ti + 1] == "clean") CleanSchedule.RunTask(); } catch (Exception ex) { Log(ex); }
                 return;
             }
             ShowMessage = Native.RegisterWindowMessage("GROBS_OPTIMIZER_SHOW");
@@ -126,6 +126,9 @@ namespace Grobs
             { "accent", "violet" },
             { "sensorsAuto", true },
             { "killHotkey", false },
+            { "autoUpdate", true },
+            { "diskAlerts", true },
+            { "autoRestorePoint", true },
         };
 
         public static Dictionary<string, object> All()

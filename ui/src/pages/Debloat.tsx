@@ -51,11 +51,11 @@ export default function Debloat() {
   const [tab, setTab] = useState<'features' | 'apps'>('features');
   return (
     <div className="page">
-      <PageHead title="Recursos do Windows" sub="Desligue Copilot, Cortana, Recall, Widgets, anúncios e apps que vêm de fábrica — no estilo do Optimizer (hellzerg) e do WinUtil. Tudo reversível."
+      <PageHead title="Recursos do Windows" sub="Desligue Copilot, Cortana, Recall, Widgets, anúncios, telemetria do Windows e de programas, apps em segundo plano e apps que vêm de fábrica — no estilo do Optimizer (hellzerg) e do WinUtil. Tudo reversível."
         right={<Tabs layoutId="dbtab" value={tab} onChange={setTab} items={[{ id: 'features', label: 'Recursos' }, { id: 'apps', label: 'Apps pré-instalados' }]} />} />
       {tab === 'features'
-        ? <TweakList groups={['IA e assistentes', 'Barra de tarefas', 'Anúncios e sugestões', 'Sistema']}
-            icons={{ 'IA e assistentes': ['sparkles', '#a78bfa'], 'Barra de tarefas': ['list', '#22d3ee'], 'Anúncios e sugestões': ['eye', '#f472b6'], 'Sistema': ['settings', '#fbbf24'] }} />
+        ? <TweakList groups={['IA e assistentes', 'Barra de tarefas', 'Anúncios e sugestões', 'Sistema', 'Telemetria', 'Apps em segundo plano', 'Navegadores']}
+            icons={{ 'IA e assistentes': ['sparkles', '#a78bfa'], 'Barra de tarefas': ['list', '#22d3ee'], 'Anúncios e sugestões': ['eye', '#f472b6'], 'Sistema': ['settings', '#fbbf24'], 'Telemetria': ['eye', '#fb7185'], 'Apps em segundo plano': ['layers', '#34d399'], 'Navegadores': ['globe', '#60a5fa'] }} />
         : <Bloatware />}
     </div>
   );

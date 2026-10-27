@@ -43,6 +43,10 @@ export default function TweakList({ groups, icons }: { groups: string[]; icons: 
             <div className="row" style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)' }}>
               <Icon name={icons[g]?.[0] ?? 'settings'} size={17} style={{ color: icons[g]?.[1] ?? '#a78bfa' }} />
               <b>{g}</b><span className="spacer" /><span className="small dim">{list.filter(t => t.group === g && t.on).length}/{list.filter(t => t.group === g).length} ativos</span>
+              {list.some(t => t.group === g && !t.on && !t.locked && t.risk === 'low') && (
+                <button className="btn sm ghost" disabled={!!busy} title="Liga todos os ajustes de risco baixo deste grupo"
+                  onClick={async () => { for (const t of list.filter(x => x.group === g && !x.on && !x.locked && x.risk === 'low')) await set(t, true); }}>Ligar todos</button>
+              )}
             </div>
             <Stagger className="list" delay={0.025}>
               {list.filter(t => t.group === g).map(t => (

@@ -2,9 +2,9 @@ import { motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { call, on } from '../bridge';
 import { Icon } from '../components/Icon';
-import { Beam, Card, CardTitle, PageHead, Spinner } from '../components/ui';
+import { Beam, Card, CardTitle, Check, PageHead, Spinner, Tabs } from '../components/ui';
 import { bytes } from '../format';
-import { run } from '../store';
+import { run, toast } from '../store';
 
 type Node = { name: string; size: number; files: number; dirs: number };
 type View = { root: string; path: string; size: number; files: number; looseFiles: number; children: Node[]; bigFiles: { path: string; size: number }[] };
@@ -77,7 +77,7 @@ function Treemap({ nodes, onOpen }: { nodes: Node[]; onOpen: (n: Node) => void }
   );
 }
 
-export default function Disk() {
+function Analyzer({ tabs }: { tabs: React.ReactNode }) {
   const [vols, setVols] = useState<any[]>([]);
   const [view, setView] = useState<View | null>(null);
   const [running, setRunning] = useState(false);
@@ -108,9 +108,10 @@ export default function Disk() {
   const fullPath = (n?: string) => view ? view.root + (view.path ? view.path + '\\' : '') + (n ?? '') : '';
 
   return (
-    <div className="page">
+    <>
       <PageHead title="Espaço em disco" sub="Descubra o que está ocupando espaço — no estilo WizTree/TreeSize."
         right={<>
+          {tabs}
           {vols.map(v => <button key={v.name} className="btn" disabled={running} onClick={() => start(v.name + '\\')}><Icon name="disk" size={15} />{v.name} <span className="dim small">{bytes(v.total - v.free)}</span></button>)}
           <button className="btn" disabled={running} onClick={pick}><Icon name="folder" size={15} />Pasta…</button>
         </>} />
@@ -179,6 +180,110 @@ export default function Disk() {
           </div>
         </>
       )}
+    </>
+  );
+}
+
+type DupGroup = { size: number; wasted: number; files: { path: string; modified: string }[] };
+type DupRes = { groups: DupGroup[]; wasted: number; scanned: number; cancelled: boolean; big: { path: string; size: number; modified: string }[]; error?: string };
+type DupSt = { running: boolean; phase: string; files: number; result: DupRes | null };
+
+function Duplicates() {
+  const [folders, setFolders] = useState<string[]>([]);
+  const [minKb, setMinKb] = useState(1024);
+  const [st, setSt] = useState<DupSt>({ running: false, phase: '', files: 0, result: null });
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  // marca as cópias (mantém o arquivo mais antigo de cada grupo)
+  const autoSelect = (r: DupRes | null) => setSel(new Set((r?.groups ?? []).flatMap(g => g.files.slice(1).map(f => f.path))));
+  useEffect(() => {
+    call<string[]>('dup.folders').then(setFolders).catch(() => {});
+    call<DupSt>('dup.status').then(s => { setSt(s); autoSelect(s.result); }).catch(() => {});
+    return on('dupDone', (s: DupSt) => { setSt(s); autoSelect(s.result); });
+  }, []);
+  useEffect(() => { if (!st.running) return; const t = setInterval(() => call<DupSt>('dup.status').then(setSt).catch(() => {}), 700); return () => clearInterval(t); }, [st.running]);
+  async function start() { const r = await run(call<DupSt>('dup.start', { folders, minKb })); if (r) setSt({ ...r, running: true }); }
+  async function addFolder() { const p = await call<string>('shell.pickFolder'); if (p && !folders.includes(p)) setFolders([...folders, p]); }
+  async function remove(paths: string[]) {
+    setBusy(true);
+    const n = await run(call<number>('dup.delete', { paths }));
+    setBusy(false);
+    if (n === undefined) return;
+    toast(`${n} arquivo(s) enviados para a Lixeira`);
+    const gone = new Set(paths);
+    setSt(s => s.result ? { ...s, result: { ...s.result, groups: s.result.groups.map(g => ({ ...g, files: g.files.filter(f => !gone.has(f.path)) })).filter(g => g.files.length > 1), big: s.result.big.filter(b => !gone.has(b.path)) } } : s);
+    setSel(new Set());
+  }
+  const r = st.result;
+  const selSize = r ? r.groups.reduce((a, g) => a + g.files.filter(f => sel.has(f.path)).length * g.size, 0) : 0;
+  return (
+    <>
+      <Card style={{ marginBottom: 16 }}>
+        <div className="row wrap">
+          <b style={{ marginRight: 4 }}>Onde procurar</b>
+          {folders.map(f => <button key={f} className="chip accent" style={{ cursor: 'pointer' }} onClick={() => setFolders(folders.filter(x => x !== f))} title="Remover">{f}<Icon name="x" size={10} /></button>)}
+          <button className="btn sm ghost" onClick={addFolder} disabled={st.running}><Icon name="folder" size={13} />Adicionar pasta ou disco</button>
+          <span className="spacer" />
+          <select value={minKb} onChange={e => setMinKb(Number(e.target.value))} disabled={st.running} title="Ignorar arquivos menores que">
+            {([[100, '≥ 100 KB'], [1024, '≥ 1 MB'], [10240, '≥ 10 MB'], [102400, '≥ 100 MB']] as [number, string][]).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          {st.running ? <button className="btn" onClick={() => call('dup.cancel')}><Icon name="stop" size={14} />Parar</button>
+            : <button className="btn primary" onClick={start} disabled={folders.length === 0}><Icon name="search" size={15} />Procurar duplicados</button>}
+        </div>
+        {st.running && <div className="small muted" style={{ marginTop: 10 }}><Spinner size={12} /> {st.phase} · {st.files.toLocaleString('pt-BR')} arquivos</div>}
+      </Card>
+      {r?.error && <Card><div className="empty">{r.error}</div></Card>}
+      {r && !r.error && (
+        <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
+          <Card className="pad-0">
+            <div className="row" style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ flex: 1 }}><b>{r.groups.length} grupo(s) de duplicados</b><div className="small dim">{bytes(r.wasted)} em cópias · {r.scanned.toLocaleString('pt-BR')} arquivos verificados (comparação por conteúdo)</div></div>
+              <button className="btn sm ghost" onClick={() => autoSelect(r)}>Marcar cópias</button>
+              <button className="btn sm danger" disabled={busy || sel.size === 0} onClick={() => remove([...sel])}>{busy ? <Spinner size={12} /> : <Icon name="trash" size={13} />}Mover {sel.size} para a Lixeira ({bytes(selSize)})</button>
+            </div>
+            <div style={{ maxHeight: 520, overflow: 'auto' }}>
+              {r.groups.length === 0 && <div className="empty">Nenhum arquivo duplicado encontrado.</div>}
+              {r.groups.map((g, gi) => (
+                <div key={gi} style={{ borderBottom: '1px solid var(--line)', padding: '8px 0' }}>
+                  <div className="small dim" style={{ padding: '2px 18px' }}>{g.files.length} cópias · {bytes(g.size)} cada</div>
+                  {g.files.map(f => (
+                    <label key={f.path} className="row" style={{ padding: '5px 18px', cursor: 'pointer' }}>
+                      <Check on={sel.has(f.path)} onChange={v => setSel(p => { const n = new Set(p); v ? n.add(f.path) : n.delete(f.path); return n; })} />
+                      <span className="small ellipsis" style={{ flex: 1 }} title={f.path}>{f.path}</span>
+                      <span className="small dim">{f.modified}</span>
+                      <button className="btn sm ghost iconbtn" title="Mostrar na pasta" onClick={e => { e.preventDefault(); call('shell.reveal', { path: f.path }); }}><Icon name="external" size={12} /></button>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card className="pad-0">
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--line)' }}><b>Arquivos grandes esquecidos</b><div className="small dim">500 MB ou mais, sem alteração há 6 meses</div></div>
+            <div className="list" style={{ maxHeight: 520, overflow: 'auto' }}>
+              {r.big.length === 0 && <div className="empty small">Nada por aqui.</div>}
+              {r.big.map(b => (
+                <div key={b.path} className="li" style={{ padding: '8px 14px' }}>
+                  <div className="grow"><div className="small ellipsis" title={b.path}>{b.path.split('\\').pop()}</div><div className="s ellipsis">{b.modified} · {b.path}</div></div>
+                  <b className="small">{bytes(b.size)}</b>
+                  <button className="btn sm ghost iconbtn" title="Mostrar na pasta" onClick={() => call('shell.reveal', { path: b.path })}><Icon name="external" size={12} /></button>
+                  <button className="btn sm ghost iconbtn" title="Mover para a Lixeira" onClick={() => remove([b.path])}><Icon name="trash" size={12} /></button>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function Disk() {
+  const [tab, setTab] = useState<'map' | 'dup'>('map');
+  const tabs = <Tabs layoutId="disktab" value={tab} onChange={setTab} items={[{ id: 'map', label: 'Mapa' }, { id: 'dup', label: 'Duplicados' }]} />;
+  return (
+    <div className="page">
+      {tab === 'map' ? <Analyzer tabs={tabs} /> : <><PageHead title="Arquivos duplicados" sub="Mesmo conteúdo em lugares diferentes e arquivos grandes esquecidos. Tudo vai para a Lixeira." right={tabs} /><Duplicates /></>}
     </div>
   );
 }

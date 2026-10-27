@@ -91,6 +91,26 @@ namespace Grobs
             return true;
         }
 
+        /// <summary>Tipo de inicialização de qualquer serviço (2 = automático, 3 = manual, 4 = desativado), parando ou iniciando na hora.</summary>
+        public static void SetRaw(string name, int start)
+        {
+            if (!Program.IsAdmin) throw new UnauthorizedAccessException("Requer administrador");
+            using (var k = SvcKey(name, true))
+            {
+                if (k == null) throw new InvalidOperationException("Serviço não encontrado");
+                k.SetValue("Start", start, RegistryValueKind.DWord);
+            }
+            try
+            {
+                using (var sc = new ServiceController(name))
+                {
+                    if (start == 4 && sc.Status != ServiceControllerStatus.Stopped && sc.CanStop) { sc.Stop(); sc.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(15)); }
+                    if (start == 2 && sc.Status == ServiceControllerStatus.Stopped) { sc.Start(); sc.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(15)); }
+                }
+            }
+            catch { }
+        }
+
         /// <summary>Usado pelo Windows Update e pelo limpador: para/inicia sem mexer no tipo de inicialização.</summary>
         public static bool StopTemporarily(string name)
         {

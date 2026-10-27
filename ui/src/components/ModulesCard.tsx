@@ -5,17 +5,17 @@ import { appStore, setSetting, toast, useStore } from '../store';
 // mesmos módulos do instalador
 export const MODULES: { id: string; title: string; desc: string }[] = [
   { id: 'monitor', title: 'Monitor do sistema', desc: 'CPU, RAM, GPU, discos, sensores e processos' },
-  { id: 'repair', title: 'Diagnóstico', desc: 'Acha erros e resolve' },
+  { id: 'repair', title: 'Diagnóstico e reparo', desc: 'Acha erros e resolve; SFC, DISM, rede, Update' },
   { id: 'clean', title: 'Limpeza', desc: 'Temporários, caches e restos de atualizações' },
-  { id: 'optimize', title: 'Otimização', desc: 'Inicialização, serviços, recursos e efeitos visuais' },
+  { id: 'optimize', title: 'Otimização', desc: 'Inicialização, perfis, RAM, latência, serviços, efeitos' },
   { id: 'update', title: 'Windows Update', desc: 'Pausar, adiar, desativar e limpar cache' },
   { id: 'security', title: 'Segurança', desc: 'Central com o Microsoft Defender' },
-  { id: 'gamer', title: 'Gamer', desc: 'Otimização por jogo, perfis NVIDIA, ping e DNS' },
+  { id: 'gamer', title: 'Gamer', desc: 'Por jogo, Modo Jogo, log de FPS, gargalo, benchmark' },
   { id: 'overlay', title: 'Overlay de FPS', desc: 'FPS e sensores por cima dos jogos' },
   { id: 'oc', title: 'Overclock da GPU', desc: 'Clock, energia e ventoinha (NVIDIA)' },
   { id: 'drivers', title: 'Drivers', desc: 'Windows Update + NVIDIA, Intel e AMD' },
   { id: 'beautify', title: 'Embelezar o Windows', desc: 'Tema, cores, barra de tarefas, Explorer' },
-  { id: 'tools', title: 'Ferramentas', desc: 'Desinstalador, analisador de disco, utilitários' },
+  { id: 'tools', title: 'Ferramentas', desc: 'Programas, discos (saúde e velocidade), duplicados' },
 ];
 
 /** Liga/desliga módulos depois de instalado — esconde as abas que você não usa. */

@@ -15,7 +15,7 @@ namespace GrobsSetup
 {
     internal static class Program
     {
-        public const string AppName = "GROBS Optimizer", Version = "1.0.0", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
+        public const string AppName = "GROBS Optimizer", Version = "1.1.0", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
 
         [STAThread]
         static void Main(string[] args)
@@ -34,6 +34,7 @@ namespace GrobsSetup
                 {
                     Installer.Install(dir, Environment.Is64BitOperatingSystem && !args.Contains("--x86"), mods, !args.Contains("--no-desktop"), args.Contains("--startup"), (p, t) => { });
                     Environment.ExitCode = 0;
+                    if (args.Contains("--launch")) try { Process.Start(new ProcessStartInfo(Path.Combine(dir, "GROBS.exe")) { UseShellExecute = true }); } catch { }
                 }
                 catch (Exception ex)
                 {
@@ -137,17 +138,17 @@ namespace GrobsSetup
         readonly List<Module> _mods = new List<Module>
         {
             new Module("monitor", "Monitor do sistema", "CPU, RAM, GPU, discos, sensores e processos"),
-            new Module("repair", "Diagnóstico", "Acha erros (telas azuis, disco, drivers) e corrige"),
+            new Module("repair", "Diagnóstico e reparo", "Acha erros e corrige; SFC, DISM, rede, Windows Update"),
             new Module("clean", "Limpeza", "Temporários, caches e restos de atualizações"),
             new Module("optimize", "Otimização", "Inicialização, serviços, recursos e efeitos visuais"),
             new Module("update", "Windows Update", "Pausar, adiar, desativar e limpar cache"),
             new Module("security", "Segurança", "Central com o motor do Microsoft Defender"),
-            new Module("gamer", "Gamer", "Otimização por jogo, perfis NVIDIA, ping e DNS"),
+            new Module("gamer", "Gamer", "Por jogo, Modo Jogo, log de FPS, gargalo, benchmark, ping"),
             new Module("overlay", "Overlay de FPS", "FPS e sensores por cima dos jogos"),
             new Module("oc", "Overclock da GPU", "Clock, energia e ventoinha (NVIDIA)"),
             new Module("drivers", "Atualizador de drivers", "Windows Update + NVIDIA, Intel e AMD"),
             new Module("beautify", "Embelezar o Windows", "Tema, cores, barra de tarefas, Explorer"),
-            new Module("tools", "Ferramentas", "Desinstalador, analisador de disco, utilitários"),
+            new Module("tools", "Ferramentas", "Programas, discos (saúde e velocidade), duplicados"),
         };
         readonly List<ModuleCard> _cards = new List<ModuleCard>();
         readonly Panel _page1 = new Panel(), _page2 = new Panel();

@@ -55,7 +55,7 @@ namespace Grobs
         }
 
         // ---------- estado ----------
-        sealed class Proc { public readonly Queue<long> Times = new Queue<long>(); public int Source; }
+        sealed class Proc { public readonly Queue<long> Times = new Queue<long>(); public int Source; public long Taken; }
         static readonly Dictionary<int, Proc> _procs = new Dictionary<int, Proc>();
         static readonly object _lock = new object();
         static ulong _session, _trace;
@@ -192,6 +192,25 @@ namespace Grobs
             int n = Math.Max(1, sorted.Count / 100);
             double low1 = 1000.0 / sorted.Take(n).Average();
             return new Dictionary<string, object> { { "fps", lastSec }, { "frametime", Math.Round(avgFt, 1) }, { "low1", Math.Round(low1) } };
+        }
+
+        /// <summary>Tempos entre quadros (ms) desde a última chamada — usado pela gravação de sessões de jogo.</summary>
+        public static List<double> TakeFrames(int pid)
+        {
+            var r = new List<double>();
+            lock (_lock)
+            {
+                Proc p;
+                if (!_procs.TryGetValue(pid, out p) || p.Times.Count < 2) return r;
+                long prev = 0;
+                foreach (var t in p.Times)
+                {
+                    if (prev != 0 && t > p.Taken && prev >= p.Taken) r.Add((t - prev) * 1000.0 / _qpcFreq);
+                    prev = t;
+                }
+                p.Taken = prev;
+            }
+            return r;
         }
 
         /// <summary>Processos que estão apresentando quadros agora (para a lista de jogos detectados).</summary>

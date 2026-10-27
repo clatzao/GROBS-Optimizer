@@ -11,7 +11,7 @@ namespace Grobs
         static extern IntPtr SendMessageTimeout(IntPtr h, int msg, IntPtr w, string l, uint flags, uint timeout, out IntPtr result);
 
         static List<Tweak> _all;
-        static List<Tweak> All => _all ?? (_all = Base.Concat(Features).Concat(Looks).ToList());
+        static List<Tweak> All => _all ?? (_all = Base.Concat(Features).Concat(Looks).Concat(More).ToList());
 
         static readonly int Build = ReadBuild();
         static int ReadBuild()
@@ -49,6 +49,7 @@ namespace Grobs
         {
             var t = All.First(x => x.Id == id);
             if (t.Admin && !Program.IsAdmin) throw new UnauthorizedAccessException("Requer administrador");
+            if (on && t.Risk != "low") RestorePoints.Ensure(); // ponto de restauração antes do primeiro ajuste de risco da sessão
             foreach (var v in t.Values)
             {
                 using (var root = Root(v.Hive))

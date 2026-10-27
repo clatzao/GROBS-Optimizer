@@ -4,9 +4,9 @@ import { call } from '../bridge';
 import { Icon } from '../components/Icon';
 import CountUp from '../components/rb/CountUp';
 import DecryptedText from '../components/rb/DecryptedText';
-import { AdminLock, Beam, Card, Check, Modal, PageHead, Spinner, Stagger } from '../components/ui';
+import { AdminLock, Beam, Card, CardTitle, Check, Modal, PageHead, Spinner, Stagger } from '../components/ui';
 import { bytes } from '../format';
-import { appStore, run, useStore } from '../store';
+import { appStore, run, toast, useStore } from '../store';
 
 type Item = { id: string; name: string; group: string; desc: string; size: number; count: number; admin?: boolean; locked?: boolean; default: boolean; running?: boolean };
 
@@ -123,11 +123,53 @@ export default function Cleaner() {
         <p className="small dim" style={{ marginTop: 14 }}><Icon name="lock" size={12} /> Alguns itens do Windows exigem administrador. Use “Executar como administrador” em Configurações para incluí-los.</p>
       )}
 
+      <ScheduleCard items={items} />
+
       <Modal open={confirm} onClose={() => setConfirm(false)}>
         <h3>Confirmar limpeza</h3>
         <p className="muted" style={{ marginTop: 0 }}>{sel.size} categoria(s) · {bytes(total)}. Arquivos apagados não vão para a Lixeira{sel.has('recycle') ? ' e a Lixeira será esvaziada' : ''}.</p>
         <div className="row" style={{ marginTop: 18 }}><span className="spacer" /><button className="btn ghost" onClick={() => setConfirm(false)}>Cancelar</button><button className="btn primary" onClick={clean}><Icon name="broom" size={15} />Limpar agora</button></div>
       </Modal>
     </div>
+  );
+}
+
+type Sched = { freq: 'off' | 'daily' | 'weekly' | 'monthly'; time: string; ids: string[]; next: string | null; admin: boolean; last: string | null };
+
+/** Limpeza agendada: o próprio GROBS roda sozinho (tarefa do Windows), mesmo fechado. */
+function ScheduleCard({ items }: { items: Item[] | null }) {
+  const [s, setS] = useState<Sched | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { call<Sched>('cleansched.status').then(x => setS({ ...x, ids: x.ids?.length ? x.ids : ['usertemp', 'wintemp', 'thumbs', 'wer', 'dumps', 'dxcache'] })).catch(() => {}); }, []);
+  if (!s) return null;
+  const cats = (items ?? []).filter(i => i.id !== 'recycle');
+  async function save(next: Sched) {
+    setS(next);
+    setBusy(true);
+    const r = await run(call<Sched>('cleansched.set', { freq: next.freq, time: next.time, ids: next.ids }));
+    setBusy(false);
+    if (r) { setS(r); toast(r.freq === 'off' ? 'Limpeza agendada desligada' : `Limpeza agendada · próxima: ${r.next || '—'}`); }
+  }
+  return (
+    <Card style={{ marginTop: 18 }}>
+      <CardTitle icon="clock" color="#22d3ee" right={<>{!s.admin && <AdminLock />}{busy && <Spinner size={14} />}</>}>Limpeza agendada</CardTitle>
+      <div className="row wrap">
+        <div className="tabs">{(['off', 'daily', 'weekly', 'monthly'] as const).map(f => <button key={f} className={`tab ${s.freq === f ? 'active' : ''}`} disabled={!s.admin} onClick={() => save({ ...s, freq: f })}>{s.freq === f && <i className="tabbg" />}<span>{{ off: 'Desligada', daily: 'Diária', weekly: 'Semanal (domingo)', monthly: 'Mensal (dia 1)' }[f]}</span></button>)}</div>
+        <span className="small muted">às</span>
+        <input type="text" value={s.time} style={{ width: 70 }} disabled={!s.admin || s.freq === 'off'} onChange={e => setS({ ...s, time: e.target.value })} onBlur={() => /^d{2}:d{2}$/.test(s.time) && s.freq !== 'off' && save(s)} />
+        <span className="spacer" />
+        <span className="small dim">{s.next ? `Próxima: ${s.next}` : ''}{s.last ? ` · Última: ${s.last}` : ''}</span>
+      </div>
+      {s.freq !== 'off' && cats.length > 0 && (
+        <div className="row wrap" style={{ marginTop: 12, gap: 6 }}>
+          <span className="small dim" style={{ marginRight: 4 }}>O que limpar:</span>
+          {cats.map(c => {
+            const on = s.ids.includes(c.id);
+            return <button key={c.id} className={`chip ${on ? 'accent' : ''}`} style={{ cursor: 'pointer' }} disabled={!s.admin} onClick={() => save({ ...s, ids: on ? s.ids.filter(x => x !== c.id) : [...s.ids, c.id] })}>{on && <Icon name="check" size={10} />}{c.name}</button>;
+          })}
+        </div>
+      )}
+      <p className="small dim" style={{ marginBottom: 0 }}>Roda mesmo com o GROBS fechado (tarefa do Agendador do Windows), sem janela. Caches de navegadores abertos são pulados.</p>
+    </Card>
   );
 }

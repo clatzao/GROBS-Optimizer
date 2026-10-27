@@ -117,6 +117,7 @@ function Health() {
                 {bat.cycles > 0 && <><dt>Ciclos</dt><dd>{bat.cycles}</dd></>}
               </dl>
             </div>
+            <button className="btn sm" style={{ marginTop: 12 }} onClick={() => call('battery.report').catch((e: any) => alert(e.message))}><Icon name="file" size={13} />Relatório detalhado</button>
           </Card>
         )}
       </Stagger>

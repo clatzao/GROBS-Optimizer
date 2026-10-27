@@ -3,6 +3,7 @@ import { call, on } from '../bridge';
 import { Icon } from '../components/Icon';
 import { AdminLock, Beam, Card, CardTitle, Modal, PageHead, Spark, Spinner, Stagger, Tabs, Toggle } from '../components/ui';
 import { appStore, run, toast, useStore } from '../store';
+import { GameModeTab, SessionsTab } from './GamerExtra';
 
 type Game = { name: string; store: string; exe: string; dir: string; appid?: string; gpuHigh: boolean; noFso: boolean; highPriority: boolean; autoTurbo: boolean; running: boolean };
 type NvOpt = { key: string; title: string; desc: string; values: string[] };
@@ -288,12 +289,15 @@ function NetTab() {
 }
 
 export default function Gamer() {
-  const [tab, setTab] = useState<'games' | 'net'>('games');
+  const [tab, setTab] = useState<'games' | 'mode' | 'sessions' | 'net'>('games');
   return (
     <div className="page">
       <PageHead title="Gamer" sub="Otimização por jogo e rede para jogar com mais FPS e menos lag."
-        right={<Tabs layoutId="gmtab" value={tab} onChange={setTab} items={[{ id: 'games', label: 'Meus jogos' }, { id: 'net', label: 'Ping e rede' }]} />} />
-      {tab === 'games' ? <GamesTab /> : <NetTab />}
+        right={<Tabs layoutId="gmtab" value={tab} onChange={setTab} items={[{ id: 'games', label: 'Meus jogos' }, { id: 'mode', label: 'Modo Jogo' }, { id: 'sessions', label: 'Sessões e gargalo' }, { id: 'net', label: 'Ping e rede' }]} />} />
+      {tab === 'games' && <GamesTab />}
+      {tab === 'mode' && <GameModeTab />}
+      {tab === 'sessions' && <SessionsTab />}
+      {tab === 'net' && <NetTab />}
     </div>
   );
 }

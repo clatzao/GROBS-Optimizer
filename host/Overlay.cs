@@ -107,7 +107,7 @@ namespace Grobs
         {
             _timer.Stop();
             UnregisterHotKey(Handle, 1);
-            FpsCounter.Stop();
+            if (!FpsLog.Recording) FpsCounter.Stop();
             base.OnFormClosed(e);
         }
 
