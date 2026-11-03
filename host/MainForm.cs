@@ -378,6 +378,9 @@ namespace Grobs
                 { "overlay.config", p => { Settings.Set("overlay", p["config"]); Overlay.Apply(); return Overlay.Config(); } },
 
                 { "shell.reveal", p => { var f = Str(p, "path"); if (File.Exists(f) || Directory.Exists(f)) System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + f + "\""); return true; } },
+                { "force.inspect", p => ForceDelete.Inspect(Str(p, "path")) },
+                { "force.run", p => ForceDelete.Run(Str(p, "path"), Bool(p, "closeApps")) },
+                { "shell.pickFile", p => (string)Invoke((Func<string>)(() => { using (var d = new OpenFileDialog { Title = "Escolha o arquivo", DereferenceLinks = false }) return d.ShowDialog(this) == DialogResult.OK ? d.FileName : null; })) },
                 { "shell.pickFolder", p => (string)Invoke((Func<string>)(() => { using (var d = new FolderBrowserDialog { Description = "Escolha uma pasta" }) return d.ShowDialog(this) == DialogResult.OK ? d.SelectedPath : null; })) },
 
                 { "update.check", p => Updater.Check() },
@@ -508,6 +511,7 @@ namespace Grobs
         async void SetUiVisible(bool visible)
         {
             if (_visibleUi == visible || _web.CoreWebView2 == null) return;
+            if (!visible && Array.IndexOf(Environment.GetCommandLineArgs(), "--debug-port") >= 0) return; // testes automatizados: mantém a interface respondendo
             _visibleUi = visible;
             try
             {

@@ -50,7 +50,7 @@ Requisitos: Windows 10/11 (já trazem .NET 4.8 e WebView2). Windows 7 SP1: insta
 | **Drivers** | Dispositivos sem driver, catálogo do Windows Update, versões mais novas da NVIDIA/Intel |
 | **Embelezar** | Modo escuro, cor de destaque, barra de tarefas, menu de contexto clássico, Explorer |
 | **Discos** | Saúde S.M.A.R.T. completa como o CrystalDiskInfo (SATA e NVMe, alertas na bandeja), teste de velocidade como o CrystalDiskMark, TRIM/desfragmentação, alinhamento |
-| **Ferramentas** | Desinstalador com ícones e limpeza de resíduos, atualização de programas (winget), analisador de disco (treemap), arquivos duplicados, pontos de restauração, relatório de bateria |
+| **Ferramentas** | Desinstalador com ícones e limpeza de resíduos, atualização de programas (winget), analisador de disco (treemap), arquivos duplicados, apagar à força (arquivos sem permissão ou em uso), pontos de restauração, relatório de bateria |
 | **Configurações** | Atualização automática pelo GitHub (1 clique), módulos, backup/importação dos ajustes |
 
 **Leve:** ~3–4% de CPU com o painel aberto num i5 de 3ª geração; ~0% minimizado (a interface é suspensa).

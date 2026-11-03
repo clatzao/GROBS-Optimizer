@@ -48,6 +48,8 @@ export default function Tools() {
         ))}
       </div>
 
+      <ForceDeleteCard />
+
       <RestorePointsCard />
 
       <h2 className="sec"><Icon name="network" size={16} />Latência da internet</h2>
@@ -119,6 +121,86 @@ function RestorePointsCard() {
         <h3>Restaurar o sistema?</h3>
         <p className="muted" style={{ marginTop: 0 }}>O Windows volta ao ponto <b>{confirm?.desc}</b> ({confirm?.date}). Programas e drivers instalados depois dessa data podem ser removidos. <b>O PC reinicia em 15 segundos</b> — salve o que estiver aberto.</p>
         <div className="row"><span className="spacer" /><button className="btn ghost" onClick={() => setConfirm(null)}>Cancelar</button><button className="btn danger" onClick={() => confirm && restore(confirm)}><Icon name="restore" size={14} />Restaurar e reiniciar</button></div>
+      </Modal>
+    </>
+  );
+}
+
+type FdInfo = { path: string; isDir: boolean; files: number; dirs: number; size: number; owner: string; blocked: string | null; admin: boolean; lockers: { pid: number; name: string }[] };
+type FdResult = { deleted: number; pending: number; failed: number; closed: number; errors: string[]; exists: boolean };
+
+/** Apagar à força: arquivos com "acesso negado", "você precisa de permissão" ou "em uso por outro programa". */
+function ForceDeleteCard() {
+  const admin = useStore(appStore, a => a?.admin);
+  const [path, setPath] = useState('');
+  const [info, setInfo] = useState<FdInfo | null>(null);
+  const [closeApps, setCloseApps] = useState(true);
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<FdResult | null>(null);
+
+  async function inspect(p: string) {
+    setPath(p); setResult(null); setInfo(null);
+    if (!p.trim()) return;
+    setBusy(true);
+    const r = await run(call<FdInfo>('force.inspect', { path: p }));
+    setBusy(false);
+    if (r) setInfo(r);
+  }
+  async function pick(m: string) { const p = await call<string | null>(m); if (p) inspect(p); }
+  async function del() {
+    if (!info) return;
+    setConfirm(false); setBusy(true);
+    const r = await run(call<FdResult>('force.run', { path: info.path, closeApps }));
+    setBusy(false);
+    if (!r) return;
+    setResult(r); setInfo(null); setPath('');
+    if (r.failed > 0) toast(`${r.failed} item(ns) não puderam ser apagados`, 'warn');
+    else if (r.pending > 0) toast('Parte dos itens será apagada ao reiniciar o PC', 'info');
+    else toast('Apagado');
+  }
+  const human = (n: number) => (n >= 1073741824 ? `${(n / 1073741824).toFixed(1)} GB` : n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.ceil(n / 1024)} KB`);
+  return (
+    <>
+      <h2 className="sec"><Icon name="trash" size={16} />Apagar à força</h2>
+      <Card>
+        <CardTitle icon="lock" color="#f87171" right={!admin && <AdminLock />}>Arquivos que o Windows não deixa apagar</CardTitle>
+        <div className="small muted" style={{ marginBottom: 12 }}>Para "acesso negado", "você precisa de permissão" e "arquivo em uso": o GROBS assume a posse, dá permissão a si mesmo, fecha quem está travando e apaga. O que continuar preso é apagado ao reiniciar. A pasta do Windows e as pastas essenciais são sempre recusadas.</div>
+        <div className="row wrap">
+          <input type="text" placeholder="Cole o caminho aqui ou escolha ao lado" value={path} onChange={e => setPath(e.target.value)} onBlur={() => path !== (info?.path ?? '') && inspect(path)} onKeyDown={e => e.key === 'Enter' && inspect(path)} style={{ flex: 1, minWidth: 260 }} />
+          <button className="btn sm" onClick={() => pick('shell.pickFile')} disabled={busy}><Icon name="file" size={13} />Arquivo…</button>
+          <button className="btn sm" onClick={() => pick('shell.pickFolder')} disabled={busy}><Icon name="folder" size={13} />Pasta…</button>
+        </div>
+        {busy && <div className="small muted" style={{ marginTop: 12 }}><Spinner size={12} /> Trabalhando…</div>}
+        {info && (
+          <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--line)' }}>
+            <div className="mono small selectable" style={{ wordBreak: 'break-all' }}>{info.path}</div>
+            <div className="small dim" style={{ marginTop: 4 }}>{info.isDir ? `${info.files} arquivo(s) e ${info.dirs} subpasta(s)` : 'Arquivo'} · {human(info.size)}{info.owner ? ` · dono: ${info.owner}` : ''}</div>
+            {info.blocked ? <div className="small bad-t" style={{ marginTop: 10 }}><Icon name="shield" size={12} /> {info.blocked}</div> : (
+              <>
+                {info.lockers.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className="small warn-t"><Icon name="alert" size={12} /> Em uso por: {info.lockers.map(l => `${l.name} (${l.pid})`).join(', ')}</div>
+                    <label className="row small" style={{ gap: 8, marginTop: 8 }}><Toggle on={closeApps} onChange={setCloseApps} />Fechar esses programas (o que não estiver salvo neles é perdido)</label>
+                  </div>
+                )}
+                <button className="btn danger" style={{ marginTop: 12 }} disabled={!admin || busy} onClick={() => setConfirm(true)}><Icon name="trash" size={15} />Apagar à força</button>
+              </>
+            )}
+          </div>
+        )}
+        {result && (
+          <div className="small" style={{ marginTop: 12 }}>
+            <span className={result.failed ? 'warn-t' : 'ok-t'}>{result.deleted} apagado(s){result.closed ? ` · ${result.closed} programa(s) fechado(s)` : ''}{result.pending ? ' · o restante sai ao reiniciar o PC' : ''}{result.failed ? ` · ${result.failed} com falha` : ''}</span>
+            {result.errors.length > 0 && <pre className="mono selectable dim" style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap', maxHeight: 120, overflow: 'auto' }}>{result.errors.join('\n')}</pre>}
+          </div>
+        )}
+      </Card>
+      <Modal open={confirm && !!info} onClose={() => setConfirm(false)}>
+        <h3>Apagar definitivamente?</h3>
+        <p className="muted" style={{ marginTop: 0 }}>Isto <b>não vai para a Lixeira e não dá para desfazer</b>. Se o arquivo pertence a um programa ou ao sistema, esse programa pode parar de funcionar.</p>
+        <div className="mono small" style={{ wordBreak: 'break-all', marginBottom: 14 }}>{info?.path}</div>
+        <div className="row"><span className="spacer" /><button className="btn ghost" onClick={() => setConfirm(false)}>Cancelar</button><button className="btn danger" onClick={del}><Icon name="trash" size={14} />Apagar</button></div>
       </Modal>
     </>
   );
