@@ -244,7 +244,8 @@ namespace Grobs
             {
                 Node n; try { n = Walk(_rootPath, _rootPath, ct, 0); } catch (OperationCanceledException) { n = new Node { Kids = new List<Node>() }; }
                 n.Name = _rootPath;
-                if (!ct.IsCancellationRequested) _root = n;
+                if (ct.IsCancellationRequested) return; // varredura substituída por outra: quem terminar é a nova
+                _root = n;
                 _running = false;
                 Program.Window?.Notify("diskDone", new Dictionary<string, object> { { "path", _rootPath } });
             });

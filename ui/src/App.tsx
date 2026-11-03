@@ -32,21 +32,25 @@ const Beautify = lazy(() => import('./pages/Beautify'));
 const Debloat = lazy(() => import('./pages/Debloat'));
 const Gamer = lazy(() => import('./pages/Gamer'));
 const Perf = lazy(() => import('./pages/Perf'));
+const Smart = lazy(() => import('./pages/Smart'));
+const DeepClean = lazy(() => import('./pages/DeepClean'));
 const Disks = lazy(() => import('./pages/Disks'));
 const Repair = lazy(() => import('./pages/Repair'));
 const Bench = lazy(() => import('./pages/Bench'));
 const Profiles = lazy(() => import('./pages/Profiles'));
 
 export type PageId = 'dash' | 'monitor' | 'diagnose' | 'clean' | 'optimize' | 'services' | 'debloat' | 'visual' | 'update' | 'security'
-  | 'gamer' | 'overlay' | 'oc' | 'drivers' | 'apps' | 'disk' | 'beautify' | 'tools' | 'settings' | 'perf' | 'disks' | 'repair' | 'bench' | 'profiles';
+  | 'gamer' | 'overlay' | 'oc' | 'drivers' | 'apps' | 'disk' | 'beautify' | 'tools' | 'settings' | 'smart' | 'deepclean' | 'perf' | 'disks' | 'repair' | 'bench' | 'profiles';
 
 // mod = módulo escolhido no instalador (sem lista de módulos = tudo instalado)
 const NAV: { id: PageId; label: string; icon: string; section?: string; mod?: string }[] = [
   { id: 'dash', label: 'Painel', icon: 'dashboard' },
+  { id: 'smart', label: 'Análise inteligente', icon: 'sparkles', mod: 'optimize' },
   { id: 'monitor', label: 'Monitor', icon: 'activity', mod: 'monitor' },
   { id: 'diagnose', label: 'Diagnóstico', icon: 'heart', mod: 'repair' },
   { id: 'repair', label: 'Reparar o Windows', icon: 'wrench', mod: 'repair' },
   { id: 'clean', label: 'Limpeza', icon: 'broom', section: 'Manutenção', mod: 'clean' },
+  { id: 'deepclean', label: 'Limpeza com IA', icon: 'sparkles', mod: 'clean' },
   { id: 'optimize', label: 'Otimização', icon: 'rocket', mod: 'optimize' },
   { id: 'profiles', label: 'Perfis 1 clique', icon: 'layers', mod: 'optimize' },
   { id: 'perf', label: 'Memória e latência', icon: 'memory', mod: 'optimize' },
@@ -179,6 +183,8 @@ export default function App() {
       case 'drivers': return <Drivers />;
       case 'beautify': return <Beautify />;
       case 'perf': return <Perf />;
+      case 'smart': return <Smart />;
+      case 'deepclean': return <DeepClean />;
       case 'disks': return <Disks />;
       case 'repair': return <Repair />;
       case 'bench': return <Bench />;

@@ -38,7 +38,7 @@ namespace Grobs
         const int MaxListed = 5000; // arquivos consultados para achar quem trava (a pasta inteira é apagada mesmo assim)
 
         /// <summary>Motivo de recusa, ou null se o caminho pode ser apagado.</summary>
-        static string Blocked(string full)
+        internal static string Blocked(string full)
         {
             string root = Path.GetPathRoot(full);
             string trimmed = full.TrimEnd('\\');

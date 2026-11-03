@@ -231,7 +231,7 @@ namespace Grobs
     /// <summary>Exporta/importa os ajustes do GROBS (configurações, ajustes do Windows, serviços desativados, efeitos visuais) para outro PC.</summary>
     internal static class Backup
     {
-        static readonly string[] SkipKeys = { "modules", "diskHealth", "updateChecked", "scannedGames", "customGames", "startupDelays", "profileUndo", "cleanLast", "parkingPrev", "benchHistory" };
+        static readonly string[] SkipKeys = { "modules", "diskHealth", "updateChecked", "scannedGames", "customGames", "startupDelays", "profileUndo", "cleanLast", "parkingPrev", "benchHistory", "ai" };
 
         public static string Build()
         {

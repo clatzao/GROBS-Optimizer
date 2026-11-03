@@ -89,6 +89,7 @@ namespace Grobs
                 if (Program.IsAdmin && Settings.Get<bool>("sensorsAuto")) Sensors.Start(); // temperatura real da CPU no painel
                 Games.Watcher.Refresh(); // Turbo automático, Modo Jogo e gravação de FPS
                 MemoryCleaner.StartAuto();
+                Responsive.Restore();
                 TimerRes.Restore();
                 Smart.StartAlerts();
                 Updater.StartAuto();
@@ -378,6 +379,19 @@ namespace Grobs
                 { "overlay.config", p => { Settings.Set("overlay", p["config"]); Overlay.Apply(); return Overlay.Config(); } },
 
                 { "shell.reveal", p => { var f = Str(p, "path"); if (File.Exists(f) || Directory.Exists(f)) System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + f + "\""); return true; } },
+                { "dclean.start", p => DiskClean.Start() },
+                { "dclean.status", p => DiskClean.Status() },
+                { "dclean.delete", p => DiskClean.Delete(Arr(p, "ids")) },
+                { "ai.cleanup", p => Ai.Cleanup() },
+                { "analysis.start", p => Analyzer.Start(Int(p, "seconds")) },
+                { "analysis.status", p => Analyzer.Status() },
+                { "analysis.apply", p => Analyzer.Apply(Str(p, "id")) },
+                { "analysis.measure", p => Analyzer.Measure() },
+                { "responsive.status", p => Responsive.Status() },
+                { "responsive.set", p => Responsive.Set(Bool(p, "on")) },
+                { "ai.config", p => Ai.Config() },
+                { "ai.set", p => Ai.SetConfig(Str(p, "provider"), Str(p, "model"), Str(p, "key"), Bool(p, "consent")) },
+                { "ai.analyze", p => Ai.Analyze() },
                 { "force.inspect", p => ForceDelete.Inspect(Str(p, "path")) },
                 { "force.run", p => ForceDelete.Run(Str(p, "path"), Bool(p, "closeApps")) },
                 { "shell.pickFile", p => (string)Invoke((Func<string>)(() => { using (var d = new OpenFileDialog { Title = "Escolha o arquivo", DereferenceLinks = false }) return d.ShowDialog(this) == DialogResult.OK ? d.FileName : null; })) },
@@ -589,7 +603,7 @@ namespace Grobs
                 e.Cancel = true; CreateTray(); Hide(); SetUiVisible(false); return;
             }
             if (Boost.Active) Boost.Stop();
-            try { FpsLog.End(); GameMode.Exit(); } catch { }
+            try { FpsLog.End(); GameMode.Exit(); Responsive.Shutdown(); } catch { }
             _timer?.Dispose();
             _monitor?.Dispose();
             if (_tray != null) { _tray.Visible = false; _tray.Dispose(); }

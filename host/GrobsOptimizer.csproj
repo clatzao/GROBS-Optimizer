@@ -25,6 +25,7 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" GeneratePathProperty="true" />
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <Reference Include="System.Management" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Web.Extensions" />
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Microsoft.CSharp" />

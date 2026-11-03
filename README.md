@@ -32,10 +32,12 @@ Requisitos: Windows 10/11 (já trazem .NET 4.8 e WebView2). Windows 7 SP1: insta
 | Área | Recursos |
 |---|---|
 | **Painel** | Score de saúde, verificação com um clique, gráficos em tempo real |
+| **Análise inteligente** | Mede a carga real, o boot e o hardware, mostra quem está pesando com evidência, aplica com um botão e mede de novo; prioridade automática para a janela em uso; opinião de IA grátis e opcional |
 | **Monitor** | CPU por núcleo, RAM, GPU, disco, rede, temperaturas, sensores completos (LibreHardwareMonitor), S.M.A.R.T., processos com *finalizar à força* e lista de apps "Não respondendo" |
 | **Diagnóstico** | Lê os registros do Windows (telas azuis, desligamentos, erros de disco/hardware, travamentos, falhas do Update, drivers) e resolve com um clique — ou *Resolver tudo* |
 | **Reparar o Windows** | SFC, DISM, CHKDSK, reset de rede, reparo do Windows Update e da Store, cache de ícones — com o andamento na tela |
 | **Limpeza** | Temporários, caches de navegadores/apps, Windows Update, Lixeira — manual ou agendada (diária/semanal/mensal) |
+| **Limpeza com IA** | Caches de programas e ferramentas, projetos parados, arquivos grandes esquecidos, Lixeira e hibernação; a IA explica e prioriza, e só sai o que você marcar |
 | **Otimização** | Inicialização (com atraso por programa), ajustes de desempenho e privacidade, planos de energia, Modo Turbo, prioridade de CPU fixa por programa |
 | **Perfis 1 clique** | Jogo, Trabalho, Notebook/bateria e Desempenho máximo — com desfazer |
 | **Memória e latência** | Liberador de RAM (manual, por limite ou ao abrir jogo), memória virtual, compressão de memória, timer 0,5 ms, core parking, modo MSI, MMCSS, rede avançada (TCP, economia de energia da placa e do Wi-Fi) |
