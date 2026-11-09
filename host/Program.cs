@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -11,7 +12,7 @@ namespace Grobs
 {
     internal static class Program
     {
-        public const string Version = "1.3.2";
+        public const string Version = "1.4.0";
         public static readonly bool IsAdmin = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
         public static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GROBS");
         public static MainForm Window;
@@ -31,6 +32,9 @@ namespace Grobs
                 return;
             }
             ShowMessage = Native.RegisterWindowMessage("GROBS_OPTIMIZER_SHOW");
+            // "Verificar com GROBS" (clique direito): guarda o pedido; a janela aberta (ou esta) faz a verificação
+            int si = Array.IndexOf(args, "--scan");
+            if (si >= 0 && si + 1 < args.Length) AvGuard.SaveRequest(args[si + 1]);
             bool created;
             _mutex = new Mutex(true, "GROBS_Optimizer_SingleInstance", out created);
             if (!created && Array.IndexOf(args, "--elevated") < 0)
@@ -39,6 +43,18 @@ namespace Grobs
                 return;
             }
             Directory.CreateDirectory(DataDir);
+            // Sempre como administrador (opção em Configurações): pede o UAC uma vez; se recusar, abre normal.
+            if (!IsAdmin && Array.IndexOf(args, "--elevated") < 0 && Settings.Get<object>("alwaysAdmin") as bool? != false)
+            {
+                try
+                {
+                    _mutex.ReleaseMutex(); _mutex.Dispose();
+                    string pass = string.Join(" ", args.Select(a => "\"" + a.Replace("\"", "") + "\"")) + " --elevated";
+                    Process.Start(new ProcessStartInfo(Application.ExecutablePath, pass) { UseShellExecute = true, Verb = "runas" });
+                    return;
+                }
+                catch { bool c2; _mutex = new Mutex(true, "GROBS_Optimizer_SingleInstance", out c2); } // UAC recusado: segue sem admin
+            }
             AppDomain.CurrentDomain.UnhandledException += (s, e) => Log(e.ExceptionObject as Exception);
             AppDomain.CurrentDomain.AssemblyResolve += ResolveEmbedded;
             Application.ThreadException += (s, e) => Log(e.Exception);
@@ -121,6 +137,8 @@ namespace Grobs
             { "interval", 1000 },
             { "trayOnClose", false },
             { "startWithWindows", false },
+            { "alwaysAdmin", true },
+            { "debloatAllUsers", true },
             { "tempUnit", "C" },
             { "boostApps", new object[0] },
             { "accent", "violet" },
@@ -186,17 +204,48 @@ namespace Grobs
 
         const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
 
+        const string StartTask = @"GROBS\Iniciar com o Windows";
+
+        static bool TaskExists() => Schtask.Run("/Query /TN \"" + StartTask + "\"").Contains("GROBS");
+
+        /// <summary>
+        /// Com administrador, "Iniciar com o Windows" vira tarefa agendada com privilégio máximo: o GROBS já entra como
+        /// administrador, sem aviso do UAC (a chave Run não consegue elevar). Sem administrador, usa a chave Run.
+        /// </summary>
         static bool StartWithWindows
         {
-            get { using (var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey)) return k?.GetValue("GROBS Optimizer") != null; }
+            get
+            {
+                using (var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey)) if (k?.GetValue("GROBS Optimizer") != null) return true;
+                return TaskExists();
+            }
             set
             {
+                bool viaTask = false;
+                if (value && Program.IsAdmin)
+                {
+                    Schtask.Run("/Create /F /TN \"" + StartTask + "\" /SC ONLOGON /RL HIGHEST /DELAY 0000:20 /TR \"\\\"" + Application.ExecutablePath + "\\\" --tray\"");
+                    viaTask = TaskExists();
+                }
+                if (!value && Program.IsAdmin) Schtask.Run("/Delete /F /TN \"" + StartTask + "\"");
                 using (var k = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(RunKey))
                 {
-                    if (value) k.SetValue("GROBS Optimizer", "\"" + Application.ExecutablePath + "\" --tray");
+                    if (value && !viaTask) k.SetValue("GROBS Optimizer", "\"" + Application.ExecutablePath + "\" --tray");
                     else k.DeleteValue("GROBS Optimizer", false);
                 }
             }
+        }
+
+        /// <summary>Quem já tinha "Iniciar com o Windows" pela chave Run passa para a tarefa (abre como administrador).</summary>
+        public static void MigrateStartup()
+        {
+            try
+            {
+                if (!Program.IsAdmin) return;
+                using (var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunKey)) if (k?.GetValue("GROBS Optimizer") == null) return;
+                StartWithWindows = true;
+            }
+            catch (Exception ex) { Program.Log(ex); }
         }
     }
 }

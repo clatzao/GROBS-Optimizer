@@ -46,6 +46,9 @@ namespace Grobs
             { "BytedancePte.Ltd.TikTok", new[] { "TikTok", "safe" } }, { "AmazonVideo.PrimeVideo", new[] { "Prime Video", "safe" } }, { "4DF9E0F8.Netflix", new[] { "Netflix", "review" } },
             { "AdobeSystemsIncorporated.AdobePhotoshopExpress", new[] { "Photoshop Express", "safe" } }, { "Flipboard.Flipboard", new[] { "Flipboard", "safe" } },
             { "9E2F88E3.Twitter", new[] { "X (Twitter)", "safe" } }, { "ShazamEntertainmentLtd.Shazam", new[] { "Shazam", "safe" } }, { "D5EA27B7.Duolingo-LearnLanguagesforFree", new[] { "Duolingo", "safe" } },
+            // perigosos: a loja e o login do Xbox (jogos da Store/Game Pass deixam de funcionar)
+            { "Microsoft.WindowsStore", new[] { "Microsoft Store", "danger" } }, { "Microsoft.StorePurchaseApp", new[] { "Compras da Microsoft Store", "danger" } },
+            { "Microsoft.XboxIdentityProvider", new[] { "Xbox: login (Identity Provider)", "danger" } }, { "Microsoft.Xbox.TCUI", new[] { "Xbox: interface de jogos (TCUI)", "danger" } },
         };
         // jogos e apps promocionais que vêm com prefixo de editora variável
         static readonly string[] PromoParts = { "CandyCrush", "BubbleWitch", "MarchofEmpires", "HiddenCity", "Asphalt", "FarmVille", "RoyalRevolt", "Sudoku", "Minecraft", "DisneyMagicKingdoms", "COOKINGFEVER", "PandoraMediaInc", "Plex", "Wunderlist", "EclipseManager", "ActiproSoftware" };
@@ -95,7 +98,7 @@ namespace Grobs
                 if (info == null || !seen.Add(name)) continue; // só provisionado: volta em conta nova ou após grande atualização
                 list.Add(new Dictionary<string, object> { { "name", name }, { "title", info[0] }, { "risk", info[1] }, { "version", "" }, { "installed", false }, { "provisioned", true } });
             }
-            return list.OrderBy(d => (string)d["risk"] == "safe" ? 0 : 1).ThenBy(d => (string)d["title"]).Cast<object>().ToList();
+            return list.OrderBy(d => (string)d["risk"] == "safe" ? 0 : (string)d["risk"] == "review" ? 1 : 2).ThenBy(d => (string)d["title"]).Cast<object>().ToList();
         }
 
         public static object RemoveApps(IEnumerable<string> names, bool provisioned)

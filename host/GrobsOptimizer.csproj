@@ -32,6 +32,8 @@
     <Reference Include="System.ServiceProcess" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\ui\dist\**\*" LinkBase="ui" LogicalName="ui/%(RecursiveDir)%(Filename)%(Extension)" />

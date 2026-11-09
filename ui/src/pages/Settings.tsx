@@ -45,7 +45,8 @@ export default function SettingsPage() {
           <CardTitle icon="settings" color="#22d3ee">Comportamento</CardTitle>
           <div className="list">
             {row('Animação de abertura', 'Tela de boot com os dados do PC e o robô ligando. Clique ou tecla pula.', <Toggle on={(s as any).intro !== false} onChange={v => setSetting('intro' as any, v as any)} />)}
-            {row('Iniciar com o Windows', 'Abre minimizado na bandeja, sem ocupar a tela.', <Toggle on={s.startWithWindows} onChange={v => setSetting('startWithWindows', v)} />)}
+            {row('Sempre abrir como administrador', 'Pede a permissão do Windows uma vez ao abrir, para todas as funções funcionarem. Ao iniciar com o Windows, já entra como administrador sem perguntar.', <Toggle on={(s as any).alwaysAdmin !== false} onChange={v => setSetting('alwaysAdmin' as any, v as any)} />)}
+            {row('Iniciar com o Windows', 'Abre minimizado na bandeja, sem ocupar a tela (como administrador, sem aviso do Windows).', <Toggle on={s.startWithWindows} onChange={v => setSetting('startWithWindows', v)} />)}
             {row('Fechar para a bandeja', 'O botão X esconde o app em vez de encerrar. Oculto, ele fica suspenso e não usa CPU.', <Toggle on={s.trayOnClose} onChange={v => setSetting('trayOnClose', v)} />)}
             {row('Atalho Ctrl+Alt+F4 = finalizar à força', 'Fecha na hora o app em primeiro plano, mesmo travado (como o SuperF4).', <Toggle on={!!(s as any).killHotkey} onChange={v => setSetting('killHotkey' as any, v as any)} />)}
             {row('Sensores completos ao abrir', 'Lê a temperatura real da CPU no Painel (modo admin). Desligue para economizar ~15 MB de RAM.', <Toggle on={(s as any).sensorsAuto !== false} onChange={v => setSetting('sensorsAuto' as any, v as any)} />)}

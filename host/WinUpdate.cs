@@ -40,6 +40,7 @@ namespace Grobs
             DateTime d;
             if (exp != null && DateTime.TryParse(exp, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out d) && d > DateTime.UtcNow) paused = d.ToLocalTime();
             bool disabled = Convert.ToInt32(Val(AU, "NoAutoUpdate") ?? 0) == 1 || SvcStart("wuauserv") == 4;
+            string mode = SvcStart("wuauserv") == 4 ? "disabled" : Convert.ToInt32(Val(AU, "NoAutoUpdate") ?? 0) == 1 ? "manual" : "auto";
             int deferFeature = Convert.ToInt32(Val(Pol, "DeferFeatureUpdatesPeriodInDays") ?? 0);
             int deferQuality = Convert.ToInt32(Val(Pol, "DeferQualityUpdatesPeriodInDays") ?? 0);
             long cache = 0;
@@ -50,7 +51,7 @@ namespace Grobs
             }
             catch { }
             return new Dictionary<string, object> {
-                { "pausedUntil", paused.HasValue ? paused.Value.ToString("dd/MM/yyyy") : null }, { "disabled", disabled },
+                { "pausedUntil", paused.HasValue ? paused.Value.ToString("dd/MM/yyyy") : null }, { "disabled", disabled }, { "mode", mode },
                 { "deferFeature", deferFeature }, { "deferQuality", deferQuality }, { "cache", (double)cache },
                 { "scheduled", ScheduleInfo() }, { "canPause", Win10Plus }, { "admin", Program.IsAdmin } };
         }
@@ -97,16 +98,21 @@ namespace Grobs
         static void SetSvc(string svc, int start, bool delayed = false)
         {
             if (!Exists(svc)) return;
+            string path = @"SYSTEM\CurrentControlSet\Services\" + svc;
             try
             {
-                using (var k = Lm().OpenSubKey(@"SYSTEM\CurrentControlSet\Services\" + svc, true))
+                // WaaSMedicSvc e UsoSvc são protegidos: se o Windows negar, o GROBS assume a posse da chave e tenta de novo
+                PrivRun.WithKey(RegistryHive.LocalMachine, path, () =>
                 {
-                    if (k == null) return;
-                    k.SetValue("Start", start, RegistryValueKind.DWord);
-                    if (delayed) k.SetValue("DelayedAutostart", 1, RegistryValueKind.DWord);
-                }
+                    using (var k = Lm().OpenSubKey(path, true))
+                    {
+                        if (k == null) return;
+                        k.SetValue("Start", start, RegistryValueKind.DWord);
+                        if (delayed) k.SetValue("DelayedAutostart", 1, RegistryValueKind.DWord);
+                    }
+                });
             }
-            catch { /* WaaSMedicSvc é protegido em algumas versões: segue sem ele */ }
+            catch (Exception ex) { Program.Log(ex); }
         }
 
         /// <summary>Desativa totalmente (política + serviços + tarefas). Tudo é revertido por Enable().</summary>
@@ -118,18 +124,45 @@ namespace Grobs
             SetSvc("wuauserv", 4);
             SetSvc("UsoSvc", 4);
             SetSvc("WaaSMedicSvc", 4);
-            foreach (var t in Tasks) Schtasks("/Change /TN \"" + t + "\" /Disable");
+            SetTasks(false);
             return Status();
+        }
+
+        /// <summary>
+        /// Só manual: o Windows não baixa, não instala e não reinicia sozinho, mas o serviço continua vivo para você
+        /// atualizar quando quiser (aqui no GROBS ou em Configurações > Windows Update). Sem correções automáticas.
+        /// </summary>
+        public static object Manual()
+        {
+            Need();
+            using (var k = Lm().CreateSubKey(AU))
+            {
+                k.SetValue("NoAutoUpdate", 1, RegistryValueKind.DWord);
+                k.SetValue("AUOptions", 2, RegistryValueKind.DWord); // só avisar
+                k.SetValue("NoAutoRebootWithLoggedOnUsers", 1, RegistryValueKind.DWord);
+            }
+            SetSvc("wuauserv", 3);
+            SetSvc("UsoSvc", Win10Plus ? 2 : 3, Win10Plus);
+            SetSvc("WaaSMedicSvc", 3);
+            SetTasks(false);
+            return Status();
+        }
+
+        /// <summary>As tarefas do UpdateOrchestrator são protegidas: muda como SISTEMA (.bat), e como admin se não der.</summary>
+        static void SetTasks(bool on)
+        {
+            try { PrivRun.AsSystem(Tasks.Select(t => "schtasks /Change /TN \"" + t + "\" " + (on ? "/Enable" : "/Disable"))); }
+            catch (Exception ex) { Program.Log(ex); foreach (var t in Tasks) Schtasks("/Change /TN \"" + t + "\" " + (on ? "/Enable" : "/Disable")); }
         }
 
         public static object Enable()
         {
             Need();
-            using (var k = Lm().OpenSubKey(AU, true)) { k?.DeleteValue("NoAutoUpdate", false); k?.DeleteValue("AUOptions", false); }
+            using (var k = Lm().OpenSubKey(AU, true)) { k?.DeleteValue("NoAutoUpdate", false); k?.DeleteValue("AUOptions", false); k?.DeleteValue("NoAutoRebootWithLoggedOnUsers", false); }
             SetSvc("wuauserv", 3);
             SetSvc("UsoSvc", Win10Plus ? 2 : 3, Win10Plus);
             SetSvc("WaaSMedicSvc", 3);
-            foreach (var t in Tasks) Schtasks("/Change /TN \"" + t + "\" /Enable");
+            SetTasks(true);
             Services.StartIf("wuauserv", true);
             return Status();
         }

@@ -65,7 +65,7 @@ export default function Services() {
                       <div className="grow">
                         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                           <span className="t">{s.title}</span>
-                          <span className={`risk ${s.risk}`}>{s.risk === 'low' ? 'seguro' : s.risk === 'medium' ? 'depende' : 'cuidado'}</span>
+                          <span className={`risk ${s.risk}`}>{s.risk === 'low' ? 'tranquilo' : s.risk === 'medium' ? 'moderado' : 'perigoso'}</span>
                         </div>
                         <div className="s" style={{ marginTop: 2 }}>{s.desc}</div>
                         <div className="s mono" style={{ marginTop: 3, fontSize: 11 }}>

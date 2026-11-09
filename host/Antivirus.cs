@@ -182,12 +182,16 @@ namespace Grobs
                 ulong prev = 0; bool first = true;
                 foreach (var h in all) { if (!first && h == prev) continue; bw.Write(h); prev = h; first = false; }
             }
+            CloseSigs();
             if (File.Exists(SigFile)) File.Delete(SigFile);
             File.Move(tmp, SigFile);
             c = Cfg();
             c["vsLists"] = have.OrderBy(x => x).Cast<object>().ToList();
             c["updated"] = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
             SaveCfg(c);
+            if (!_cancel && Environment.Is64BitOperatingSystem)
+                try { AvGuard.UpdateYara(Phase); }
+                catch (Exception ex) { _error = "Regras YARA: " + ex.Message; }
             _finished = "update";
         }
 
@@ -266,6 +270,7 @@ namespace Grobs
             foreach (var d in dirs) Walk(d.Key, d.Value, f => { if (seen.Add(f)) { targets.Add(f); _files = targets.Count; if (_files % 5000 == 0) Push(); } });
             _files = targets.Count;
 
+            Func<ulong, bool> has = sigs.Length > 0 ? (Func<ulong, bool>)(k => Array.BinarySearch(sigs, k) >= 0) : null;
             Phase(sigs.Length > 0 ? "Verificando arquivos" : "Verificando arquivos (sem base de assinaturas: só heurística)");
             var tick = Stopwatch.StartNew();
             using (var md5 = MD5.Create())
@@ -274,8 +279,14 @@ namespace Grobs
                     if (_cancel) break;
                     _current = f; _done++;
                     if (tick.ElapsedMilliseconds > 400) { tick.Restart(); Push(); }
-                    try { Check(f, md5, sigs, ignored, autostart.Contains(f), running.Contains(f)); } catch { }
+                    try { Check(f, md5, has, ignored, autostart.Contains(f), running.Contains(f)); } catch { }
                 }
+            if (!_cancel && AvGuard.YaraReady)
+            {
+                Phase("Verificando com as regras YARA");
+                var ylist = targets.Where(t => IsLightTarget(t) || DocExt.Contains(Path.GetExtension(t))).ToList();
+                foreach (var g in AvGuard.YaraScan(ylist).GroupBy(x => x.Key)) AddYara(g.Key, g.Select(x => x.Value));
+            }
             _finished = _cancel ? "canceled" : "scan";
             Phase(_cancel ? "Verificação cancelada" : "Verificação concluída");
             var c = Cfg(); c["lastScan"] = DateTime.Now.ToString("dd/MM/yyyy HH:mm"); SaveCfg(c);
@@ -302,20 +313,20 @@ namespace Grobs
             foreach (var s in subs) Walk(Path.Combine(dir, s), depth - 1, found);
         }
 
-        static void Check(string f, MD5 md5, ulong[] sigs, HashSet<string> ignored, bool auto, bool running)
+        static void Check(string f, MD5 md5, Func<ulong, bool> has, HashSet<string> ignored, bool auto, bool running)
         {
             var fi = new FileInfo(f);
             if (!fi.Exists) return;
             string ext = fi.Extension, name = fi.Name;
             string hash = null;
-            if (sigs.Length > 0 && fi.Length > 0 && fi.Length <= MaxHash)
+            if (has != null && fi.Length > 0 && fi.Length <= MaxHash)
             {
                 using (var s = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16))
                 {
                     var b = md5.ComputeHash(s);
                     hash = BitConverter.ToString(b).Replace("-", "").ToLowerInvariant();
                     if (ignored.Contains(hash) || ignored.Contains(f)) return;
-                    if (Array.BinarySearch(sigs, Prefix(b)) >= 0) { Add(new Hit { Path = f, Kind = "malware", Reason = "Malware conhecido: este arquivo é idêntico a uma amostra catalogada", Source = "assinatura", Md5 = hash, Score = 100, Size = fi.Length }); return; }
+                    if (has(Prefix(b))) { Add(new Hit { Path = f, Kind = "malware", Reason = "Malware conhecido: este arquivo é idêntico a uma amostra catalogada", Source = "assinatura", Md5 = hash, Score = 100, Size = fi.Length }); return; }
                 }
             }
             if (ignored.Contains(f)) return;
@@ -353,7 +364,102 @@ namespace Grobs
                 Add(new Hit { Path = f, Kind = score >= 60 ? "suspeito" : "atenção", Reason = char.ToUpper(why[0][0]) + string.Join("; ", why).Substring(1), Source = "heurística", Md5 = hash, Score = Math.Min(99, score), Size = fi.Length });
         }
 
-        static void Add(Hit h) { lock (_lock) _hits.Add(h); Push(); }
+        static void Add(Hit h)
+        {
+            if (h.Kind == "malware" && AvGuard.AutoQuarantine)
+                try { AvGuard.Quarantine(h.Path, h.Reason, h.Md5); h.Removed = true; Program.Window?.Balloon("GROBS: malware isolado na quarentena", Path.GetFileName(h.Path), true); }
+                catch (Exception ex) { Program.Log(ex); }
+            lock (_lock) _hits.Add(h);
+            Push();
+        }
+
+        // ------------------------------------------------------------------ consulta de assinaturas sem carregar a base na memória (tempo real)
+        static System.IO.MemoryMappedFiles.MemoryMappedFile _mmf;
+        static System.IO.MemoryMappedFiles.MemoryMappedViewAccessor _view;
+        static long _mmCount;
+        static readonly object _mmLock = new object();
+
+        internal static void CloseSigs() { lock (_mmLock) { _view?.Dispose(); _mmf?.Dispose(); _view = null; _mmf = null; } }
+
+        static bool InSigs(ulong key)
+        {
+            lock (_mmLock)
+            {
+                if (_view == null)
+                {
+                    if (!File.Exists(SigFile) || new FileInfo(SigFile).Length < 8) return false;
+                    var fs = new FileStream(SigFile, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+                    _mmCount = fs.Length / 8;
+                    _mmf = System.IO.MemoryMappedFiles.MemoryMappedFile.CreateFromFile(fs, null, 0, System.IO.MemoryMappedFiles.MemoryMappedFileAccess.Read, null, HandleInheritability.None, false);
+                    _view = _mmf.CreateViewAccessor(0, 0, System.IO.MemoryMappedFiles.MemoryMappedFileAccess.Read);
+                }
+                long lo = 0, hi = _mmCount - 1;
+                while (lo <= hi)
+                {
+                    long mid = (lo + hi) >> 1;
+                    ulong v = _view.ReadUInt64(mid * 8);
+                    if (v == key) return true;
+                    if (v < key) lo = mid + 1; else hi = mid - 1;
+                }
+                return false;
+            }
+        }
+
+        static readonly HashSet<string> DocExt = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".doc", ".docm", ".xls", ".xlsm", ".pptm", ".rtf", ".pdf", ".msi", ".jar" };
+
+        /// <summary>Tipos que a proteção em tempo real "leve" verifica: executáveis, scripts e instaladores.</summary>
+        internal static bool IsLightTarget(string f) { string e = Path.GetExtension(f); return ExeExt.Contains(e) || ScriptExt.Contains(e) || e.Equals(".msi", StringComparison.OrdinalIgnoreCase) || e.Equals(".jar", StringComparison.OrdinalIgnoreCase); }
+
+        /// <summary>Verifica um arquivo (tempo real ou pendrive); avisa na bandeja se achar algo.</summary>
+        internal static int CheckRealtime(string f, MD5 md5, string source)
+        {
+            int before; lock (_lock) before = _hits.Count;
+            bool any = File.Exists(SigFile);
+            Check(f, md5, any ? (Func<ulong, bool>)InSigs : null, Ignored(), false, false);
+            int found; lock (_lock) found = _hits.Count - before;
+            if (found == 0 && AvGuard.YaraReady)
+                foreach (var g in AvGuard.YaraScan(new[] { f }).GroupBy(x => x.Key))
+                { AddYara(g.Key, g.Select(x => x.Value)); found++; }
+            if (found > 0)
+            {
+                Hit h; lock (_lock) h = _hits.LastOrDefault();
+                if (h != null && !h.Removed) Program.Window?.Balloon("GROBS (" + source + "): " + (h.Kind == "malware" ? "malware" : "arquivo suspeito"), Path.GetFileName(f) + " — abra o GROBS > Antivírus", true);
+            }
+            return found;
+        }
+
+        static void AddYara(string path, IEnumerable<string> rules)
+        {
+            if (Ignored().Contains(path)) return;
+            lock (_lock) if (_hits.Any(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase))) return;
+            long size = 0; try { size = new FileInfo(path).Length; } catch { }
+            Add(new Hit { Path = path, Kind = "suspeito", Reason = "Regra YARA de família de malware: " + string.Join(", ", rules.Distinct().Take(3)), Source = "YARA", Score = 90, Size = size });
+        }
+
+        /// <summary>Verificação rápida de um pendrive/HD externo recém-conectado. Devolve quantas ameaças achou.</summary>
+        internal static int ScanDevice(string root)
+        {
+            var list = new List<string>();
+            Walk(root, 4, f => { if (IsLightTarget(f) || DocExt.Contains(Path.GetExtension(f))) list.Add(f); });
+            int found = 0;
+            using (var md5 = MD5.Create())
+                foreach (var f in list.Take(20000))
+                {
+                    int before; lock (_lock) before = _hits.Count;
+                    try { Check(f, md5, File.Exists(SigFile) ? (Func<ulong, bool>)InSigs : null, Ignored(), false, false); } catch { }
+                    lock (_lock) found += _hits.Count - before;
+                }
+            if (AvGuard.YaraReady)
+                foreach (var g in AvGuard.YaraScan(list.Take(20000).ToList()).GroupBy(x => x.Key)) { int b; lock (_lock) b = _hits.Count; AddYara(g.Key, g.Select(x => x.Value)); lock (_lock) found += _hits.Count - b; }
+            return found;
+        }
+
+        /// <summary>Não acusar mais este arquivo (hash ou caminho) — usado ao restaurar da quarentena.</summary>
+        internal static void IgnoreHash(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            var c = Cfg(); var set = Ignored(); set.Add(key); c["ignored"] = set.Cast<object>().ToList(); SaveCfg(c);
+        }
 
         static string Packer(string f)
         {
@@ -447,6 +553,16 @@ namespace Grobs
         }
 
         // ------------------------------------------------------------------ ações
+        /// <summary>Isola uma detecção na quarentena (pode ser restaurada depois).</summary>
+        public static void QuarantineHit(string path)
+        {
+            Hit h; lock (_lock) h = _hits.FirstOrDefault(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase) && !x.Removed);
+            if (h == null) throw new InvalidOperationException("Item não está na lista de detecções.");
+            AvGuard.Quarantine(h.Path, h.Reason, h.Md5);
+            lock (_lock) h.Removed = true;
+            Push();
+        }
+
         public static object Remove(string path, bool force)
         {
             Hit h; lock (_lock) h = _hits.FirstOrDefault(x => x.Path.Equals(path, StringComparison.OrdinalIgnoreCase) && !x.Removed);

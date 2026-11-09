@@ -312,7 +312,12 @@ namespace Grobs
             lock (_state) return new Dictionary<string, object> { { "running", _busy }, { "current", _current }, { "state", new Dictionary<string, string>(_state) } };
         }
 
-        public static object Upgrade(string[] ids)
+        public static object Upgrade(string[] ids) => Exec(ids, "upgrade");
+
+        /// <summary>Instala programas pelo winget (alternativas leves sugeridas ao remover apps do Windows).</summary>
+        public static object Install(string[] ids) => Exec(ids, "install");
+
+        static object Exec(string[] ids, string verb)
         {
             if (_busy) return Status();
             if (Exe() == null) throw new InvalidOperationException("winget não encontrado (instale o \"Instalador de Aplicativo\" pela Microsoft Store)");
@@ -328,7 +333,7 @@ namespace Grobs
                     string res;
                     try
                     {
-                        var psi = new ProcessStartInfo(Exe(), "upgrade --id " + id + " --exact --silent --accept-source-agreements --accept-package-agreements --disable-interactivity") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+                        var psi = new ProcessStartInfo(Exe(), verb + " --id " + id + " --exact --silent --accept-source-agreements --accept-package-agreements --disable-interactivity") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
                         using (var p = Process.Start(psi)) { p.StandardOutput.ReadToEnd(); p.WaitForExit(); res = p.ExitCode == 0 ? "done" : "failed"; }
                     }
                     catch { res = "failed"; }

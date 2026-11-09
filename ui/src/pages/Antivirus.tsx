@@ -50,6 +50,109 @@ function DefenderCard() {
   );
 }
 
+// ------------------------------------------------------------------ proteções (tempo real, pendrive, ransomware), quarentena, clique direito
+type Guard = {
+  realtime: boolean; usb: boolean; ransom: boolean; ransomFolders: string[]; customFolders: string[]; cfa: 'on' | 'off' | 'audit' | 'unavailable';
+  contextMenu: boolean; autoQ: boolean; yara: boolean; yaraRules: number; yaraDate: string;
+  quarantine: { id: string; path: string; reason: string; date: string; size: number }[];
+  alert: { reason: string; time: string; pid?: number; name?: string; path?: string; written?: number; suspended?: boolean } | null; admin: boolean;
+};
+
+function useGuard() {
+  const [g, setG] = useState<Guard | null>(null);
+  useEffect(() => { call<Guard>('avg.status').then(setG).catch(() => {}); return on('avGuard', setG); }, []);
+  return [g, setG] as const;
+}
+
+function Risk({ level }: { level: 'low' | 'medium' | 'high' }) {
+  return <span className={`risk ${level}`}>{level === 'low' ? 'tranquilo' : level === 'medium' ? 'moderado' : 'perigoso'}</span>;
+}
+
+function GuardRow({ title, desc, on, risk, onChange, disabled }: { title: string; desc: string; on: boolean; risk: 'low' | 'medium' | 'high'; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <div className="li" style={{ padding: '12px 0' }}>
+      <div className="grow"><div className="t">{title} <Risk level={risk} /></div><div className="s" style={{ whiteSpace: 'normal' }}>{desc}</div></div>
+      <Toggle on={on} onChange={onChange} disabled={disabled} />
+    </div>
+  );
+}
+
+function GuardCard() {
+  const [g, setG] = useGuard();
+  if (!g) return <Card><Spinner /></Card>;
+  const set = async (what: string, v: boolean) => { const r = await run(call<Guard>('avg.set', { what, on: v })); if (r) setG(r); };
+  const add = async () => { const path = await call<string>('shell.pickFolder'); if (!path) return; const r = await run(call<Guard>('avg.addFolder', { path })); if (r) setG(r); };
+  const rem = async (path: string) => { const r = await run(call<Guard>('avg.removeFolder', { path })); if (r) setG(r); };
+  return (
+    <Card>
+      <CardTitle icon="shieldCheck" color="#4ade80">Proteção do GROBS</CardTitle>
+      <div className="small dim">Funciona enquanto o GROBS estiver aberto, inclusive minimizado na bandeja. Para ficar sempre ligada, ative "Iniciar com o Windows" em Configurações.</div>
+      <div className="list">
+        <GuardRow title="Tempo real (leve)" risk="low" on={g.realtime} onChange={v => set('realtime', v)}
+          desc="Vigia Downloads, Área de Trabalho, pastas temporárias e inicialização e verifica na hora cada programa, script ou instalador novo. Arquivos comuns não são lidos, então quase não pesa." />
+        <GuardRow title="Pendrive e HD externo ao conectar" risk="low" on={g.usb} onChange={v => set('usb', v)}
+          desc="Quando um dispositivo é conectado, verifica programas, scripts e documentos com macro nele e avisa na bandeja." />
+        <GuardRow title="Quarentena automática de malware conhecido" risk="low" on={g.autoQ} onChange={v => set('autoQ', v)}
+          desc="Arquivo idêntico a malware catalogado vai direto para a quarentena (dá para restaurar). Suspeitas da heurística e do YARA só avisam." />
+        <GuardRow title="Anti-ransomware" risk="medium" on={g.ransom} onChange={v => set('ransom', v)}
+          desc="Coloca arquivos-isca ocultos nas pastas protegidas e vigia alterações em massa. Se um programa começar a cifrar ou renomear muitos arquivos, ele é pausado na hora e o GROBS pergunta o que fazer." />
+        {g.ransom && (
+          <div style={{ padding: '4px 0 10px 12px' }}>
+            <div className="small muted" style={{ marginBottom: 6 }}>Pastas protegidas:</div>
+            {g.ransomFolders.map(f => (
+              <div key={f} className="row small" style={{ gap: 8, marginBottom: 4 }}>
+                <Icon name="folder" size={12} /><span className="mono selectable ellipsis" style={{ flex: 1 }}>{f}</span>
+                {g.customFolders.includes(f) && <button className="btn ghost sm" onClick={() => rem(f)}><Icon name="x" size={11} /></button>}
+              </div>
+            ))}
+            <button className="btn sm" onClick={add}><Icon name="folder" size={13} />Adicionar pasta</button>
+          </div>
+        )}
+        <GuardRow title="Acesso controlado a pastas do Windows" risk="medium" on={g.cfa === 'on'} disabled={!g.admin || g.cfa === 'unavailable'} onChange={v => set('cfa', v)}
+          desc={g.cfa === 'unavailable' ? 'Indisponível: precisa do Microsoft Defender ativo.' : 'Bloqueio do próprio Windows (Defender): só programas confiáveis podem alterar as pastas protegidas. Alguns jogos e programas podem precisar de liberação em Segurança do Windows.'} />
+        <GuardRow title={'"Verificar com GROBS" no clique direito'} risk="low" on={g.contextMenu} onChange={v => set('contextMenu', v)}
+          desc="Adiciona a opção no menu de arquivos, pastas e unidades do Explorador (no Windows 11, em Mostrar mais opções)." />
+      </div>
+    </Card>
+  );
+}
+
+function QuarantineCard() {
+  const [g, setG] = useGuard();
+  if (!g || g.quarantine.length === 0) return null;
+  const act = async (m: string, id: string, ok: string) => { const r = await run(call<Guard>(m, { id }), ok); if (r) setG(r); };
+  return (
+    <Card className="pad-0">
+      <div style={{ padding: '16px 18px 6px' }}><CardTitle icon="lock" color="#fbbf24">Quarentena ({g.quarantine.length})</CardTitle>
+        <div className="small dim" style={{ marginTop: -6, marginBottom: 6 }}>Arquivos isolados e cifrados: não executam. Restaure só se tiver certeza de que o arquivo é seguro.</div></div>
+      {g.quarantine.map(q => (
+        <div key={q.id} className="li">
+          <div className="grow"><div className="t ellipsis">{q.path.split('\\').pop()}</div><div className="s ellipsis selectable">{q.path}</div><div className="s">{q.reason} · {bytes(q.size)} · {q.date}</div></div>
+          <button className="btn sm" onClick={() => act('avg.restore', q.id, 'Arquivo restaurado')}><Icon name="restore" size={13} />Restaurar</button>
+          <button className="btn sm danger" onClick={() => act('avg.deleteQ', q.id, 'Apagado de vez')}><Icon name="trash" size={13} />Apagar</button>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
+function RansomAlert() {
+  const [g, setG] = useGuard();
+  const a = g?.alert;
+  const act = async (action: string) => { const r = await run(call<Guard>('avg.resolve', { action })); if (r) setG(r); };
+  return (
+    <Modal open={!!a} onClose={() => {}}>
+      <h3 className="bad-t">Possível ransomware</h3>
+      <p className="muted" style={{ marginTop: 0 }}>{a?.reason} ({a?.time}).</p>
+      {a?.name ? (
+        <p className="muted">O programa que mais escreveu no disco agora foi <b>{a.name}</b>{a.written ? ` (${bytes(a.written)} em 1,5 s)` : ''}{a.suspended ? ' e ele foi pausado.' : ', mas não deu para pausá-lo.'}<br /><span className="mono small selectable">{a.path}</span></p>
+      ) : <p className="muted">Não deu para identificar o programa responsável. Se você estava copiando ou baixando muitos arquivos, pode ignorar.</p>}
+      <div className="row wrap"><button className="btn ghost" onClick={() => act('resume')}>É seguro, continuar</button><span className="spacer" />
+        {a?.name && <><button className="btn danger" onClick={() => act('kill')}>Encerrar</button><button className="btn danger" onClick={() => act('quarantine')}>Encerrar e pôr em quarentena</button></>}</div>
+    </Modal>
+  );
+}
+
 export default function Antivirus() {
   const [av, setAv] = useState<Av | null>(null);
   const [key, setKey] = useState('');
@@ -125,7 +228,7 @@ export default function Antivirus() {
             <div className="small muted">
               <div className="stat-big" style={{ color: av.sigs ? 'var(--text)' : 'var(--warn)' }}>{av.sigs ? av.sigs.toLocaleString('pt-BR') : 'Vazia'}</div>
               <div style={{ marginTop: 6 }}>{av.sigs ? `Atualizada em ${av.sigDate}.` : 'Baixe a base antes da primeira verificação (cerca de 100 MB de download, 25 MB no disco). Sem ela, só a heurística funciona.'}</div>
-              <div style={{ marginTop: 6 }}>Fontes: listas públicas da VirusShare (amostras mais recentes){av.bazaar ? ' e MalwareBazaar (últimas 48 h).' : '.'}{' '}
+              <div style={{ marginTop: 6 }}>Fontes: listas públicas da VirusShare (amostras mais recentes){av.bazaar ? ', MalwareBazaar (últimas 48 h)' : ''} e regras YARA da ReversingLabs (famílias de malware, licença MIT; atualizadas junto).{' '}
                 <button className="btn ghost sm" style={{ padding: 0, height: 'auto' }} onClick={() => setKeyOpen(true)}>{av.bazaar ? 'Trocar chave da MalwareBazaar' : 'Adicionar MalwareBazaar (chave grátis)'}</button>
               </div>
               {av.ignored > 0 && <div style={{ marginTop: 6 }}>{av.ignored} item(ns) ignorado(s). <button className="btn ghost sm" style={{ padding: 0, height: 'auto' }} onClick={async () => { const r = await run(call<Av>('av.clearIgnored'), 'Lista de ignorados limpa'); if (r) setAv(r); }}>Limpar</button></div>}
@@ -149,11 +252,16 @@ export default function Antivirus() {
             {h.md5 && <a className="btn sm ghost" href={`https://www.virustotal.com/gui/file/${h.md5}`} target="_blank" rel="noreferrer" title="Ver o que outros antivírus dizem deste arquivo (só consulta o hash, nada é enviado)"><Icon name="external" size={13} />VirusTotal</a>}
             <button className="btn sm ghost" onClick={() => call('shell.reveal', { path: h.path })} title="Abrir local"><Icon name="folder" size={13} /></button>
             <button className="btn sm" disabled={!!busy} onClick={() => ignore(h)}>Ignorar</button>
+            <button className="btn sm" disabled={!!busy} onClick={async () => { const r = await run(call('avg.quarantine', { path: h.path }), 'Arquivo isolado na quarentena'); if (r) call<Av>('av.status').then(setAv); }}><Icon name="lock" size={13} />Quarentena</button>
             <button className="btn sm danger" disabled={!!busy} onClick={() => setConfirm(h)}>{busy === h.path ? <Spinner size={12} /> : <Icon name="trash" size={13} />}Apagar</button>
           </div>
         ))}
       </Card>
       <p className="small dim">A heurística aponta comportamentos suspeitos, não certezas: confira no VirusTotal antes de apagar um programa que você conhece. "Malware conhecido" é um arquivo idêntico, byte a byte, a uma amostra catalogada.</p>
+
+      <h2 className="sec"><Icon name="shieldCheck" />Proteção contínua</h2>
+      <div className="grid" style={{ gap: 16 }}><GuardCard /><QuarantineCard /></div>
+      <RansomAlert />
 
       <h2 className="sec"><Icon name="shield" />Proteção do Windows</h2>
       <DefenderCard />

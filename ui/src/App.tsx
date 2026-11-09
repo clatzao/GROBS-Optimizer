@@ -156,6 +156,12 @@ export default function App() {
   const [intro, setIntro] = useState(() => anim !== 'off' && (app?.settings as any)?.intro !== false && !(app as any)?.hidden);
 
   useEffect(() => on('maximized', (m: boolean) => setMaximized(!!m)), []);
+  // "Verificar com GROBS" no clique direito: abre a página do antivírus com a verificação já rodando
+  useEffect(() => {
+    const check = () => call<string | null>('avg.pending').then(p => { if (p) { setPage('antivirus'); toast('Verificando ' + p, 'info'); } }).catch(() => {});
+    check();
+    return on('avPending', check);
+  }, []);
   useEffect(() => { document.documentElement.dataset.anim = anim; }, [anim]);
   useEffect(() => {
     // bloqueia F5/Ctrl+R e o menu de contexto do navegador no app final

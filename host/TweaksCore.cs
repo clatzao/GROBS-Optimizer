@@ -11,7 +11,7 @@ namespace Grobs
         static extern IntPtr SendMessageTimeout(IntPtr h, int msg, IntPtr w, string l, uint flags, uint timeout, out IntPtr result);
 
         static List<Tweak> _all;
-        static List<Tweak> All => _all ?? (_all = Base.Concat(Features).Concat(Looks).Concat(More).ToList());
+        static List<Tweak> All => _all ?? (_all = Base.Concat(Features).Concat(Looks).Concat(More).Concat(Deep).ToList());
 
         static readonly int Build = ReadBuild();
         static int ReadBuild()
@@ -52,25 +52,42 @@ namespace Grobs
             if (on && t.Risk != "low") RestorePoints.Ensure(); // ponto de restauração antes do primeiro ajuste de risco da sessão
             foreach (var v in t.Values)
             {
-                using (var root = Root(v.Hive))
-                {
-                    if (v.KeyOnly)
-                    {
-                        if (on) using (var k = root.CreateSubKey(v.Path)) k.SetValue("", "");
-                        else root.DeleteSubKeyTree(v.DeleteTree ?? v.Path, false);
-                    }
-                    else if (on || v.Off != null)
-                        using (var k = root.CreateSubKey(v.Path)) k.SetValue(v.Name, on ? v.On : v.Off, v.Kind);
-                    else
-                        using (var k = root.OpenSubKey(v.Path, true)) k?.DeleteValue(v.Name, false);
-                }
+                if (v.Hive == LM)
+                    // chave protegida pelo Windows: assume a posse (Administradores) e tenta de novo
+                    PrivRun.WithKey(RegistryHive.LocalMachine, Existing(v.Path), () => { using (var root = Root(v.Hive)) Write(root, v, on); });
+                else using (var root = Root(v.Hive)) Write(root, v, on);
             }
+            // contas novas e as outras contas do PC também (menos tema e visual, que são gosto de cada um)
+            if (Program.IsAdmin && !Looks.Contains(t) && t.Values.Any(v => v.Hive == CU) && Settings.Get<object>("debloatAllUsers") as bool? != false)
+                UserHives.Each(root => { foreach (var v in t.Values.Where(x => x.Hive == CU)) try { Write(root, v, on); } catch { } });
             t.After?.Invoke(on);
             // WM_SETTINGCHANGE com "ImmersiveColorSet" faz o tema claro/escuro e a cor de destaque mudarem na hora
             IntPtr res;
             SendMessageTimeout(Native.HWND_BROADCAST, 0x001A, IntPtr.Zero, "ImmersiveColorSet", 0x0002, 1000, out res);
             Native.PostMessage(Native.HWND_BROADCAST, 0x001A, IntPtr.Zero, IntPtr.Zero);
             return t.Values.All(Matches) == on;
+        }
+
+        static void Write(RegistryKey root, Val v, bool on)
+        {
+            if (v.KeyOnly)
+            {
+                if (on) using (var k = root.CreateSubKey(v.Path)) k.SetValue("", "");
+                else root.DeleteSubKeyTree(v.DeleteTree ?? v.Path, false);
+            }
+            else if (on || v.Off != null)
+                using (var k = root.CreateSubKey(v.Path)) k.SetValue(v.Name, on ? v.On : v.Off, v.Kind);
+            else
+                using (var k = root.OpenSubKey(v.Path, true)) k?.DeleteValue(v.Name, false);
+        }
+
+        /// <summary>A chave existente mais próxima do caminho (para assumir a posse antes de criar subchaves).</summary>
+        static string Existing(string path)
+        {
+            using (var lm = Root(LM))
+                for (string p = path; !string.IsNullOrEmpty(p); p = p.Contains("\\") ? p.Substring(0, p.LastIndexOf('\\')) : null)
+                    using (var k = lm.OpenSubKey(p)) if (k != null) return p;
+            return path;
         }
 
         const string Adv = @"Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";

@@ -15,7 +15,7 @@ namespace GrobsSetup
 {
     internal static class Program
     {
-        public const string AppName = "GROBS Optimizer", Version = "1.3.2", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
+        public const string AppName = "GROBS Optimizer", Version = "1.4.0", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
 
         [STAThread]
         static void Main(string[] args)
@@ -35,6 +35,8 @@ namespace GrobsSetup
                 try
                 {
                     Installer.Install(dir, Environment.Is64BitOperatingSystem && !args.Contains("--x86"), mods, !args.Contains("--no-desktop"), args.Contains("--startup"), (p, t) => { });
+                    // --net-drivers [pasta]: instala também os drivers de rede preparados pelo GROBS
+                    if (args.Contains("--net-drivers")) { string nd = arg("--net-drivers"); nd = nd != null && !nd.StartsWith("--") ? nd : Installer.FindNetDrivers(); if (nd != null) Installer.InstallNetDrivers(nd); }
                     Environment.ExitCode = 0;
                     if (args.Contains("--launch")) try { Process.Start(new ProcessStartInfo(Path.Combine(dir, "GROBS.exe")) { UseShellExecute = true }); } catch { }
                 }
@@ -156,6 +158,8 @@ namespace GrobsSetup
         readonly Panel _page1 = new Panel(), _page2 = new Panel();
         readonly TextBox _path = new TextBox();
         readonly DarkCheck _desktop = new DarkCheck("Atalho na área de trabalho", true), _startup = new DarkCheck("Iniciar com o Windows (na bandeja)", false), _launch = new DarkCheck("Abrir o GROBS ao concluir", true);
+        readonly DarkCheck _net = new DarkCheck("Instalar os drivers de rede do pendrive (para ter internet depois de formatar)", true);
+        readonly string _netDir = Installer.FindNetDrivers();
         readonly ComboBox _arch = new ComboBox();
         readonly GradButton _install = new GradButton { Text = "Instalar" }, _cancel = new GradButton { Text = "Cancelar", Primary = false };
         readonly Label _status = new Label(), _count = new Label();
@@ -193,6 +197,7 @@ namespace GrobsSetup
             _arch.Items.AddRange(new object[] { "64 bits", "32 bits" }); _arch.SelectedIndex = Environment.Is64BitOperatingSystem ? 0 : 1; _arch.Enabled = Environment.Is64BitOperatingSystem;
             _desktop.Location = new Point(28, 382); _startup.Location = new Point(250, 382); _launch.Location = new Point(510, 382);
             _page1.Controls.AddRange(new Control[] { lbl, _count, presets, grid, pathLbl, _path, browse, _arch, _desktop, _startup, _launch });
+            if (_netDir != null) { _net.Location = new Point(28, 408); _page1.Controls.Add(_net); }
 
             // página 2: progresso
             _page2.SetBounds(0, 110, 720, 420); _page2.Visible = false;
@@ -250,10 +255,12 @@ namespace GrobsSetup
             bool x64 = _arch.SelectedIndex == 0 && Environment.Is64BitOperatingSystem;
             var modules = _mods.Where(m => m.On).Select(m => m.Id).ToArray();
             bool desktop = _desktop.Checked, startup = _startup.Checked, launch = _launch.Checked;
+            string net = _netDir != null && _net.Checked ? _netDir : null;
             _page1.Visible = false; _page2.Visible = true; _install.Enabled = false; _cancel.Enabled = false;
             try
             {
                 await Task.Run(() => Installer.Install(dir, x64, modules, desktop, startup, SetProgress));
+                if (net != null) { SetProgress(0.97f, "Instalando os drivers de rede do pendrive…"); await Task.Run(() => Installer.InstallNetDrivers(net)); }
                 SetProgress(1, "Pronto! O GROBS Optimizer foi instalado.");
                 _install.Text = "Concluir"; _install.Enabled = true;
                 _install.Click += (s, e) => { if (launch) try { Process.Start(new ProcessStartInfo(Path.Combine(dir, "GROBS.exe")) { UseShellExecute = true }); } catch { } Close(); };
@@ -317,6 +324,24 @@ namespace GrobsSetup
             }
             progress(0.95f, "Finalizando…");
             RefreshIcons(exe, startMenu, desk);
+        }
+
+        public const string NetFolder = "GROBS-Drivers-Rede";
+
+        /// <summary>Pasta de drivers de rede preparada pelo GROBS: ao lado do instalador ou na raiz de um pendrive.</summary>
+        public static string FindNetDrivers()
+        {
+            var places = new List<string> { Path.Combine(AppDomain.CurrentDomain.BaseDirectory, NetFolder) };
+            try { places.AddRange(DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Removable).Select(d => Path.Combine(d.RootDirectory.FullName, NetFolder))); } catch { }
+            return places.FirstOrDefault(p => { try { return Directory.Exists(p) && Directory.EnumerateFiles(p, "*.inf", SearchOption.AllDirectories).Any(); } catch { return false; } });
+        }
+
+        public static void InstallNetDrivers(string dir)
+        {
+            string win = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            string pnp = Path.Combine(win, Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess ? "Sysnative" : "System32", "pnputil.exe");
+            foreach (var args in new[] { "/add-driver \"" + Path.Combine(dir, "*.inf") + "\" /subdirs /install", "/scan-devices" })
+                try { using (var p = Process.Start(new ProcessStartInfo(pnp, args) { UseShellExecute = false, CreateNoWindow = true })) p?.WaitForExit(600000); } catch { }
         }
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern void SHChangeNotify(int eventId, uint flags, string item1, IntPtr item2);

@@ -9,10 +9,13 @@ namespace Grobs
     /// <summary>Serviços da Microsoft dispensáveis para a maioria dos usuários. Desativar = parar + tipo "Desabilitado"; restaurar = tipo padrão do Windows.</summary>
     internal static class Services
     {
-        sealed class Svc { public string Name, Title, Desc, Group, Risk = "low", Default = "manual"; }
+        // Keep: quando o perfil automático deve manter o serviço (printer, bluetooth, biometric, laptop, xbox, scanner, smartcard, search)
+        internal sealed class Svc { public string Name, Title, Desc, Group, Risk = "low", Default = "manual", Keep; }
 
-        static Svc S(string name, string group, string title, string desc, string def = "manual", string risk = "low")
-            => new Svc { Name = name, Group = group, Title = title, Desc = desc, Default = def, Risk = risk };
+        static Svc S(string name, string group, string title, string desc, string def = "manual", string risk = "low", string keep = null)
+            => new Svc { Name = name, Group = group, Title = title, Desc = desc, Default = def, Risk = risk, Keep = keep };
+
+        internal static IEnumerable<Svc> Catalog => List_;
 
         static readonly List<Svc> List_ = new List<Svc>
         {
@@ -29,15 +32,35 @@ namespace Grobs
             S("PhoneSvc", "Inúteis", "Serviço de Telefonia", "Chamadas pelo app Seu Telefone/Vincular ao Celular."),
             S("WpcMonSvc", "Inúteis", "Controle dos Pais", "Restrições de conta infantil da Microsoft Family."),
             S("SEMgrSvc", "Inúteis", "Gerenciador de Pagamentos e NFC", "Pagamentos por NFC (quase nenhum PC tem)."),
-            S("XblAuthManager", "Xbox", "Gerenciador de Autenticação Xbox Live", "Necessário só para jogos da Xbox/Game Pass."),
-            S("XblGameSave", "Xbox", "Jogo Salvo do Xbox Live", "Sincroniza saves de jogos Xbox na nuvem."),
-            S("XboxNetApiSvc", "Xbox", "Serviço de Rede Xbox Live", "Rede para jogos Xbox."),
-            S("XboxGipSvc", "Xbox", "Gerenciamento de Acessórios Xbox", "Atualiza firmware de controles Xbox. Mantenha se usa controle Xbox."),
-            S("Spooler", "Opcionais", "Spooler de Impressão", "Desative só se você NÃO usa impressora (nem PDF virtual).", "auto", "medium"),
+            S("XblAuthManager", "Xbox", "Gerenciador de Autenticação Xbox Live", "Necessário só para jogos da Xbox/Game Pass.", "manual", "low", "xbox"),
+            S("XblGameSave", "Xbox", "Jogo Salvo do Xbox Live", "Sincroniza saves de jogos Xbox na nuvem.", "manual", "low", "xbox"),
+            S("XboxNetApiSvc", "Xbox", "Serviço de Rede Xbox Live", "Rede para jogos Xbox.", "manual", "low", "xbox"),
+            S("XboxGipSvc", "Xbox", "Gerenciamento de Acessórios Xbox", "Atualiza firmware de controles Xbox. Mantenha se usa controle Xbox.", "manual", "low", "xbox"),
+            S("Spooler", "Opcionais", "Spooler de Impressão", "Desative só se você NÃO usa impressora (nem PDF virtual).", "auto", "medium", "printer"),
             S("WSearch", "Opcionais", "Windows Search (indexação)", "Indexa arquivos para a busca. Desativar deixa a busca do Iniciar mais lenta.", "auto", "medium"),
             S("SysMain", "Opcionais", "SysMain (Superfetch)", "Pré-carrega apps na RAM. Só ajuda desativar em HD muito lento com pouca RAM.", "auto", "high"),
             S("wisvc", "Inúteis", "Serviço do Windows Insider", "Só necessário para quem participa do programa Insider."),
-            S("bthserv", "Opcionais", "Suporte a Bluetooth", "Desative só se o PC não usa nenhum dispositivo Bluetooth.", "manual", "medium"),
+            S("bthserv", "Opcionais", "Suporte a Bluetooth", "Desative só se o PC não usa nenhum dispositivo Bluetooth.", "manual", "medium", "bluetooth"),
+            S("TrkWks", "Inúteis", "Cliente de Rastreamento de Link Distribuído", "Mantém atalhos funcionando quando arquivos mudam de lugar em redes de empresa.", "auto"),
+            S("SharedAccess", "Inúteis", "Compartilhamento de Conexão com a Internet", "Transforma o PC em roteador para outros aparelhos.", "manual"),
+            S("icssvc", "Opcionais", "Ponto de Acesso Móvel (hotspot)", "Desative se não compartilha a internet do PC pelo Wi-Fi.", "manual", "medium", "laptop"),
+            S("TapiSrv", "Inúteis", "Telefonia (TAPI)", "Modems discados e telefonia antiga.", "manual", "medium"),
+            S("AJRouter", "Inúteis", "Roteador AllJoyn", "Protocolo de casa inteligente praticamente abandonado."),
+            S("ALG", "Inúteis", "Gateway de Camada de Aplicativo", "Usado só pelo compartilhamento de conexão antigo."),
+            S("WalletService", "Inúteis", "Serviço de Carteira", "Carteira digital do Windows, sem uso no Brasil."),
+            S("diagsvc", "Telemetria", "Execução de Diagnóstico", "Roda diagnósticos pedidos pela Microsoft.", "manual"),
+            S("PcaSvc", "Opcionais", "Assistente de Compatibilidade de Programas", "Avisa sobre programas antigos incompatíveis. Pouco útil e roda em segundo plano.", "auto", "medium"),
+            S("WinRM", "Inúteis", "Gerenciamento Remoto do Windows", "Administração remota de empresas. Desativar também reduz riscos.", "manual"),
+            S("SCardSvr", "Opcionais", "Cartão Inteligente", "Leitores de smart card (certificado digital em cartão, e-CPF/e-CNPJ A3).", "manual", "medium", "smartcard"),
+            S("ScDeviceEnum", "Opcionais", "Enumeração de Dispositivos de Cartão Inteligente", "Parte do suporte a smart card / token A3.", "manual", "medium", "smartcard"),
+            S("stisvc", "Opcionais", "Aquisição de Imagens do Windows (scanner)", "Desative só se você não usa scanner nem câmera conectada.", "manual", "medium", "scanner"),
+            S("WbioSrvc", "Opcionais", "Biometria do Windows", "Impressão digital e reconhecimento facial do Windows Hello.", "manual", "medium", "biometric"),
+            S("SensorService", "Opcionais", "Serviço de Sensores", "Rotação de tela e brilho automático de notebooks e tablets.", "manual", "medium", "laptop"),
+            S("SensrSvc", "Opcionais", "Monitoramento de Sensores", "Sensor de luz ambiente para brilho automático.", "manual", "medium", "laptop"),
+            S("SensorDataService", "Opcionais", "Dados de Sensores", "Entrega dados de sensores aos apps (notebooks e tablets).", "manual", "medium", "laptop"),
+            S("CscService", "Inúteis", "Arquivos Offline", "Cópias locais de pastas de rede de empresa.", "manual"),
+            S("lmhosts", "Opcionais", "Auxiliar NetBIOS sobre TCP/IP", "Compartilhamento de arquivos com PCs muito antigos na rede local.", "manual", "medium"),
+            S("RemoteAccess", "Inúteis", "Roteamento e Acesso Remoto", "Servidor de VPN/roteamento (já vem desativado na maioria).", "disabled"),
         };
 
         static int StartValue(string kind) => kind == "auto" ? 2 : kind == "disabled" ? 4 : 3;
@@ -74,11 +97,14 @@ namespace Grobs
         {
             if (!Program.IsAdmin) throw new UnauthorizedAccessException("Requer administrador");
             var s = List_.First(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            using (var k = SvcKey(s.Name, true))
+            PrivRun.WithKey(RegistryHive.LocalMachine, @"SYSTEM\CurrentControlSet\Services\" + s.Name, () =>
             {
-                if (k == null) throw new InvalidOperationException("Serviço não encontrado");
-                k.SetValue("Start", disable ? 4 : StartValue(s.Default), RegistryValueKind.DWord);
-            }
+                using (var k = SvcKey(s.Name, true))
+                {
+                    if (k == null) throw new InvalidOperationException("Serviço não encontrado");
+                    k.SetValue("Start", disable ? 4 : StartValue(s.Default), RegistryValueKind.DWord);
+                }
+            });
             using (var sc = new ServiceController(s.Name))
             {
                 try
@@ -95,11 +121,14 @@ namespace Grobs
         public static void SetRaw(string name, int start)
         {
             if (!Program.IsAdmin) throw new UnauthorizedAccessException("Requer administrador");
-            using (var k = SvcKey(name, true))
+            PrivRun.WithKey(RegistryHive.LocalMachine, @"SYSTEM\CurrentControlSet\Services\" + name, () =>
             {
-                if (k == null) throw new InvalidOperationException("Serviço não encontrado");
-                k.SetValue("Start", start, RegistryValueKind.DWord);
-            }
+                using (var k = SvcKey(name, true))
+                {
+                    if (k == null) throw new InvalidOperationException("Serviço não encontrado");
+                    k.SetValue("Start", start, RegistryValueKind.DWord);
+                }
+            });
             try
             {
                 using (var sc = new ServiceController(name))

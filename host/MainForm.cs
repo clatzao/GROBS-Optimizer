@@ -93,6 +93,8 @@ namespace Grobs
                 TimerRes.Restore();
                 Smart.StartAlerts();
                 Updater.StartAuto();
+                AvGuard.Start(); // proteções do antivírus que estavam ligadas
+                Settings.MigrateStartup();
                 RestartTimer();
                 if (Convert.ToBoolean(Overlay.Config()["enabled"])) Overlay.Apply();
             });
@@ -297,6 +299,18 @@ namespace Grobs
                 { "drv.install", p => Drivers.Install(Arr(p, "ids")) },
                 { "drv.installed", p => Drivers.Installed() },
                 { "drv.missing", p => Drivers.Missing() },
+                { "drvx.status", p => DriverPlus.Status() },
+                { "drvx.scan", p => DriverPlus.Scan() },
+                { "drvx.install", p => DriverPlus.Install(Arr(p, "ids")) },
+                { "drvx.undo", p => DriverPlus.Undo(Str(p, "id")) },
+                { "drvx.gpuLock", p => p.ContainsKey("on") ? DriverPlus.GpuLock(Bool(p, "on")) : DriverPlus.GpuLockStatus() },
+                { "drvx.gpuClean", p => DriverPlus.GpuClean() },
+                { "drvx.old", p => DriverPlus.OldPackages() },
+                { "drvx.deleteOld", p => DriverPlus.DeletePackages(Arr(p, "infs")) },
+                { "drvx.netPack", p => DriverPlus.NetPack(Str(p, "path")) },
+                { "drvx.netInstall", p => DriverPlus.NetInstall(Str(p, "path")) },
+                { "drvx.realtek", p => DriverPlus.RealtekInfo() },
+                { "drvx.realtekDownload", p => DriverPlus.RealtekDownload() },
                 { "games.list", p => Games.List() },
                 { "games.scan", p => Games.DeepScan() },
                 { "games.set", p => Games.Set(Str(p, "exe"), Str(p, "what"), Bool(p, "on")) },
@@ -371,6 +385,7 @@ namespace Grobs
                 { "wu.defer", p => WinUpdate.Defer(Int(p, "feature"), Int(p, "quality")) },
                 { "wu.disable", p => WinUpdate.Disable() },
                 { "wu.enable", p => WinUpdate.Enable() },
+                { "wu.manual", p => WinUpdate.Manual() },
                 { "wu.clean", p => WinUpdate.CleanCache() },
                 { "wu.schedule", p => WinUpdate.Schedule(Str(p, "freq")) },
 
@@ -396,6 +411,15 @@ namespace Grobs
                 { "ai.analyze", p => Ai.Analyze() },
                 { "force.inspect", p => ForceDelete.Inspect(Str(p, "path")) },
                 { "force.run", p => ForceDelete.Run(Str(p, "path"), Bool(p, "closeApps")) },
+                { "avg.status", p => AvGuard.Status() },
+                { "avg.set", p => AvGuard.Set(Str(p, "what"), Bool(p, "on")) },
+                { "avg.addFolder", p => AvGuard.AddFolder(Str(p, "path")) },
+                { "avg.removeFolder", p => AvGuard.RemoveFolder(Str(p, "path")) },
+                { "avg.resolve", p => AvGuard.Resolve(Str(p, "action")) },
+                { "avg.restore", p => AvGuard.Restore(Str(p, "id")) },
+                { "avg.deleteQ", p => AvGuard.DeleteQ(Str(p, "id")) },
+                { "avg.quarantine", p => { Antivirus.QuarantineHit(Str(p, "path")); return AvGuard.Status(); } },
+                { "avg.pending", p => AvGuard.Pending() },
                 { "av.status", p => Antivirus.Status() },
                 { "av.update", p => Antivirus.Update() },
                 { "av.scan", p => Antivirus.Scan(Str(p, "type"), Str(p, "path")) },
@@ -414,6 +438,13 @@ namespace Grobs
                 { "deep.features", p => DeepDebloat.Features() },
                 { "deep.removeFeature", p => DeepDebloat.RemoveFeature(Str(p, "id"), Str(p, "title")) },
                 { "deep.restoreFeature", p => DeepDebloat.RestoreFeature(Str(p, "id")) },
+                { "dprof.status", p => DebloatProfiles.Status() },
+                { "dprof.plan", p => DebloatProfiles.Plan(Str(p, "level")) },
+                { "dprof.apply", p => DebloatProfiles.Apply(Arr(p, "keys")) },
+                { "dprof.undo", p => DebloatProfiles.Undo() },
+                { "dprof.cleanup", p => DebloatProfiles.CleanupComponents() },
+                { "dprof.languages", p => DebloatProfiles.Languages() },
+                { "dprof.removeLanguage", p => DebloatProfiles.RemoveLanguage(Str(p, "locale")) },
                 { "shell.pickFile", p => (string)Invoke((Func<string>)(() => { using (var d = new OpenFileDialog { Title = "Escolha o arquivo", DereferenceLinks = false }) return d.ShowDialog(this) == DialogResult.OK ? d.FileName : null; })) },
                 { "shell.pickFolder", p => (string)Invoke((Func<string>)(() => { using (var d = new FolderBrowserDialog { Description = "Escolha uma pasta" }) return d.ShowDialog(this) == DialogResult.OK ? d.SelectedPath : null; })) },
 
@@ -489,6 +520,7 @@ namespace Grobs
                 { "repair.status", p => Repair.Status() },
                 { "winget.list", p => Winget.List() },
                 { "winget.upgrade", p => Winget.Upgrade(Arr(p, "ids")) },
+                { "winget.install", p => Winget.Install(Arr(p, "ids")) },
                 { "winget.status", p => Winget.Status() },
             };
         }
@@ -601,6 +633,9 @@ namespace Grobs
             _tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) ShowFromTray(); };
         }
 
+        /// <summary>Traz a janela para frente (alerta de ransomware, pedido de verificação do clique direito).</summary>
+        public void ShowWindowNow() { if (!IsDisposed) BeginInvoke((Action)ShowFromTray); }
+
         void ShowFromTray()
         {
             ShowInTaskbar = true;
@@ -642,10 +677,20 @@ namespace Grobs
             if (Settings.Get<bool>("killHotkey")) RegisterHotKey(Handle, 7, 0x1 | 0x2 | 0x4000, 0x73);
         }
 
+        [System.Runtime.InteropServices.DllImport("user32.dll")] static extern bool ChangeWindowMessageFilterEx(IntPtr hwnd, int msg, int action, IntPtr info);
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            // como administrador, o Windows barra mensagens de programas comuns; libera só o "mostre a janela"
+            // (segunda instância e "Verificar com GROBS" do clique direito)
+            if (Program.ShowMessage != 0) try { ChangeWindowMessageFilterEx(Handle, Program.ShowMessage, 1, IntPtr.Zero); } catch { }
+        }
+
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == 0x0312 && m.WParam.ToInt32() == 7) { System.Threading.Tasks.Task.Run(() => Processes.KillForeground()); return; }
-            if (m.Msg == Program.ShowMessage && Program.ShowMessage != 0) { ShowFromTray(); return; }
+            if (m.Msg == Program.ShowMessage && Program.ShowMessage != 0) { ShowFromTray(); Notify("avPending", true); return; }
             if (m.Msg == Native.WM_NCHITTEST && WindowState == FormWindowState.Normal)
             {
                 base.WndProc(ref m);

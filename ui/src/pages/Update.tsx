@@ -5,7 +5,7 @@ import { Beam, Card, CardTitle, Modal, PageHead, Spinner } from '../components/u
 import { bytes } from '../format';
 import { appStore, run, toast, useStore } from '../store';
 
-type St = { pausedUntil: string | null; disabled: boolean; deferFeature: number; deferQuality: number; cache: number; scheduled: { next: string } | null; canPause: boolean; admin: boolean };
+type St = { pausedUntil: string | null; disabled: boolean; mode?: 'auto' | 'manual' | 'disabled'; deferFeature: number; deferQuality: number; cache: number; scheduled: { next: string } | null; canPause: boolean; admin: boolean };
 
 export default function Update() {
   const [st, setSt] = useState<St | null>(null);
@@ -34,8 +34,8 @@ export default function Update() {
   }
 
   if (!st) return <div className="page"><div className="empty"><Spinner size={24} /></div></div>;
-  const state = st.disabled ? 'off' : st.pausedUntil ? 'paused' : 'on';
-  const color = state === 'off' ? '#f87171' : state === 'paused' ? '#fbbf24' : '#34d399';
+  const state = st.mode === 'manual' ? 'manual' : st.disabled ? 'off' : st.pausedUntil ? 'paused' : 'on';
+  const color = state === 'off' ? '#f87171' : state === 'paused' || state === 'manual' ? '#fbbf24' : '#34d399';
 
   return (
     <div className="page">
@@ -47,12 +47,12 @@ export default function Update() {
         <div className="row" style={{ gap: 20 }}>
           <div style={{ width: 64, height: 64, borderRadius: 18, display: 'grid', placeItems: 'center', background: `${color}22`, color }}><Icon name={state === 'off' ? 'stop' : state === 'paused' ? 'clock' : 'refresh'} size={30} /></div>
           <div style={{ flex: 1 }}>
-            <div className="stat-big" style={{ fontSize: 24 }}>{state === 'off' ? 'Atualizações desativadas' : state === 'paused' ? `Pausado até ${st.pausedUntil}` : 'Atualizações ativas'}</div>
+            <div className="stat-big" style={{ fontSize: 24 }}>{state === 'off' ? 'Atualizações desativadas' : state === 'manual' ? 'Só manual' : state === 'paused' ? `Pausado até ${st.pausedUntil}` : 'Atualizações ativas'}</div>
             <div className="muted small" style={{ marginTop: 4 }}>
-              {state === 'off' ? 'Seu PC não recebe correções de segurança. Reative assim que possível.' : state === 'paused' ? 'O Windows volta a atualizar sozinho na data acima.' : 'O Windows baixa e instala atualizações automaticamente.'}
+              {state === 'off' ? 'Seu PC não recebe correções de segurança. Reative assim que possível.' : state === 'manual' ? 'O Windows não baixa, não instala e não reinicia sozinho. Atualize quando quiser em Configurações > Windows Update.' : state === 'paused' ? 'O Windows volta a atualizar sozinho na data acima.' : 'O Windows baixa e instala atualizações automaticamente.'}
             </div>
           </div>
-          {state === 'off'
+          {state === 'off' || state === 'manual'
             ? <button className="btn primary" disabled={!admin || !!busy} onClick={() => act('enable', 'wu.enable', undefined, 'Windows Update reativado')}><Icon name="play" size={14} />Reativar</button>
             : state === 'paused' ? <button className="btn" disabled={!admin || !!busy} onClick={() => act('resume', 'wu.pause', { days: 0 }, 'Pausa removida')}>Retomar agora</button> : null}
         </div>
@@ -104,6 +104,13 @@ export default function Update() {
           <Icon name="alert" size={20} className="bad-t" />
           <div style={{ flex: 1 }}><b>Desativar totalmente</b><div className="small muted">Desliga os serviços e as tarefas do Windows Update. Não recomendado: o PC fica sem correções de segurança. Reversível pelo botão “Reativar”.</div></div>
           <button className="btn danger" disabled={!admin || !!busy || st.disabled} onClick={() => setConfirm(true)}>Desativar</button>
+        </div>
+      </Card>
+      <Card style={{ marginTop: 16, borderColor: 'rgba(251,191,36,.25)' }}>
+        <div className="row">
+          <Icon name="clock" size={20} className="warn-t" />
+          <div style={{ flex: 1 }}><b>Só manual</b> <span className="risk high">perigoso</span><div className="small muted">O Windows não baixa, não instala e não reinicia sozinho, mas continua funcionando para você atualizar quando quiser. Desliga também as tarefas protegidas do Windows Update (o GROBS as altera como SISTEMA). Você fica sem correções automáticas de segurança.</div></div>
+          <button className="btn" disabled={!admin || !!busy || st.mode === 'manual'} onClick={() => act('manual', 'wu.manual', undefined, 'Windows Update só manual')}>{busy === 'manual' ? <Spinner size={14} /> : <Icon name="clock" size={14} />}Só manual</button>
         </div>
       </Card>
 

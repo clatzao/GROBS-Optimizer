@@ -54,7 +54,7 @@ export default function TweakList({ groups, icons }: { groups: string[]; icons: 
                   <div className="grow">
                     <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                       <span className="t">{t.title}</span>
-                      {t.risk !== 'low' && <span className={`risk ${t.risk}`}>{t.risk === 'medium' ? 'moderado' : 'avançado'}</span>}
+                      <span className={`risk ${t.risk}`}>{t.risk === 'low' ? 'tranquilo' : t.risk === 'medium' ? 'moderado' : 'perigoso'}</span>
                     </div>
                     {t.desc && <div className="s" style={{ marginTop: 3 }}>{t.desc}</div>}
                   </div>
