@@ -11,7 +11,7 @@ namespace Grobs
 {
     internal static class Program
     {
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
         public static readonly bool IsAdmin = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
         public static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GROBS");
         public static MainForm Window;

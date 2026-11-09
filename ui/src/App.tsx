@@ -2,7 +2,6 @@ import { motion, MotionConfig } from 'motion/react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { call, fire, isNative, on } from './bridge';
 import { Icon } from './components/Icon';
-import ShinyText from './components/rb/ShinyText';
 import ClickSpark from './components/rb/ClickSpark';
 import { Spinner, Toasts } from './components/ui';
 import { appStore, boostStore, statsStore, toast, useStore } from './store';
@@ -38,9 +37,10 @@ const Disks = lazy(() => import('./pages/Disks'));
 const Repair = lazy(() => import('./pages/Repair'));
 const Bench = lazy(() => import('./pages/Bench'));
 const Profiles = lazy(() => import('./pages/Profiles'));
+const Antivirus = lazy(() => import('./pages/Antivirus'));
 
 export type PageId = 'dash' | 'monitor' | 'diagnose' | 'clean' | 'optimize' | 'services' | 'debloat' | 'visual' | 'update' | 'security'
-  | 'gamer' | 'overlay' | 'oc' | 'drivers' | 'apps' | 'disk' | 'beautify' | 'tools' | 'settings' | 'smart' | 'deepclean' | 'perf' | 'disks' | 'repair' | 'bench' | 'profiles';
+  | 'gamer' | 'overlay' | 'oc' | 'drivers' | 'apps' | 'disk' | 'beautify' | 'tools' | 'settings' | 'smart' | 'deepclean' | 'perf' | 'disks' | 'repair' | 'bench' | 'profiles' | 'antivirus';
 
 // mod = módulo escolhido no instalador (sem lista de módulos = tudo instalado)
 const NAV: { id: PageId; label: string; icon: string; section?: string; mod?: string }[] = [
@@ -58,6 +58,7 @@ const NAV: { id: PageId; label: string; icon: string; section?: string; mod?: st
   { id: 'debloat', label: 'Recursos do Windows', icon: 'package', mod: 'optimize' },
   { id: 'visual', label: 'Efeitos visuais', icon: 'eye', mod: 'optimize' },
   { id: 'update', label: 'Windows Update', icon: 'refresh', mod: 'update' },
+  { id: 'antivirus', label: 'Antivírus', icon: 'shieldCheck', mod: 'security' },
   { id: 'security', label: 'Segurança', icon: 'shield', mod: 'security' },
   { id: 'gamer', label: 'Gamer', icon: 'rocket', section: 'Jogos', mod: 'gamer' },
   { id: 'bench', label: 'Benchmark', icon: 'gauge', mod: 'gamer' },
@@ -81,8 +82,8 @@ function TitleBar({ maximized, update, go }: { maximized: boolean; update: strin
         onMouseDown={e => { if (e.button === 0 && e.detail === 1) fire('win.drag'); }}
         onDoubleClick={() => call('win.maximize')}>
         <div className="brand">
-          <img className="logo-img" src={logo} width={24} height={24} alt="" />
-          <ShinyText text="GROBS Optimizer" color="#e9e7f5" shineColor="#ffffff" speed={1.6} glow={0.25} trigger="hover" />
+          <img className="logo-img" src={logo} width={32} height={32} alt="" />
+          <span>GROBS Optimizer</span>
         </div>
         {app && <span className="chip">v{app.version} · {app.proc64 ? 'x64' : 'x86'}</span>}
         {app && (app.admin ? <span className="chip ok"><Icon name="shieldCheck" size={11} />Administrador</span> : <span className="chip">Usuário padrão</span>)}
@@ -168,6 +169,7 @@ export default function App() {
       case 'clean': return <Cleaner />;
       case 'optimize': return <Optimize />;
       case 'security': return <Security />;
+      case 'antivirus': return <Antivirus />;
       case 'apps': return <Apps />;
       case 'disk': return <Disk />;
       case 'tools': return <Tools />;

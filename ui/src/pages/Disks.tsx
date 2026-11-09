@@ -54,7 +54,7 @@ function HealthTab() {
         <Card style={{ textAlign: 'center' }}>
           <div className="small dim">Estado de saúde</div>
           <div style={{ margin: '12px auto', padding: '18px 10px', borderRadius: 14, background: st.bg, border: `1px solid ${st.color}55` }}>
-            <div style={{ font: '700 26px var(--font-display)', color: st.color }}>{st.label}</div>
+            <div style={{ font: '400 36px/44px var(--font-display)', color: st.color }}>{st.label}</div>
             {d.health !== undefined && <div className="stat-big" style={{ color: st.color, fontSize: 34, marginTop: 4 }}>{d.health}%</div>}
           </div>
           <div className="small dim">Temperatura</div>
@@ -66,7 +66,7 @@ function HealthTab() {
           {d.status === 'warn' && <p className="small warn-t" style={{ marginBottom: 0 }}>O disco apresenta sinais de desgaste ou setores com problema. Mantenha backup em dia.</p>}
         </Card>
         <Card>
-          <div style={{ font: '650 18px var(--font-display)', marginBottom: 10 }}>{d.model} <span className="muted" style={{ fontWeight: 400 }}>{bytes(d.size, 0)}</span></div>
+          <div style={{ font: '400 24px/32px var(--font-display)', marginBottom: 10 }}>{d.model} <span className="muted" style={{ fontWeight: 400 }}>{bytes(d.size, 0)}</span></div>
           <div className="grid g2" style={{ gap: '6px 24px' }}>
             <dl className="kv" style={{ margin: 0 }}>
               <dt>Firmware</dt><dd className="mono">{d.firmware || '—'}</dd>

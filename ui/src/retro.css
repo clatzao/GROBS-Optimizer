@@ -1,0 +1,140 @@
+/* ============================================================ identidade pixel art (8-bit)
+   Camada sobre styles.css: cantos retos, bordas grossas, sombras duras deslocadas,
+   fonte pixel própria em títulos, menu, abas e números. Botões e texto corrido em Segoe para ler bem. */
+/* GROBS Pixel: fonte própria (scripts/build-font.mjs), letras 5x7 com traço de 1 pixel e acentos.
+   Só em 12 px (1x), 24 px (2x) e 36 px (3x), sem negrito. O filtro #px (index.html) deixa cada pixel
+   aceso ou apagado; ele só funciona em texto sobre fundo transparente, por isso botões e etiquetas
+   usam a fonte normal. */
+@font-face { font-family: 'GROBS Pixel'; src: url('./assets/grobs-pixel.ttf') format('truetype'); font-display: block; }
+
+:root {
+  --bg: #0b0a1a;
+  --bg-2: #110f24;
+  --surface: #15122c;
+  --surface-2: #1d1940;
+  --surface-3: #2a2457;
+  --line: #2b2552;
+  --line-2: #3d3575;
+  --text: #f1eeff;
+  --text-2: #b4acd9;
+  --text-3: #7a72a6;
+  --accent: #8b5cf6;
+  --accent-2: #22d3ee;
+  --accent-3: #f472b6;
+  --grad: #8b5cf6;
+  --ok: #4ade80;
+  --warn: #facc15;
+  --bad: #f87171;
+  --info: #60a5fa;
+  --radius: 0px;
+  --radius-sm: 0px;
+  --px: 3px;                                   /* tamanho do "pixel" das bordas */
+  --hard: 4px 4px 0 #05040d;                   /* sombra dura */
+  --pixel: 'GROBS Pixel', 'Segoe UI', sans-serif;
+  --num: var(--pixel);
+  --font-display: var(--pixel);
+}
+
+img, canvas { image-rendering: pixelated; }
+* { font-synthesis: none; }
+
+/* fundo: grade fina + linhas de varredura de monitor CRT (estático, sem custo de CPU) */
+.aurora i { display: none; }
+.aurora::after {
+  background-image:
+    linear-gradient(rgba(139, 92, 246, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, .07) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse at 50% 20%, #000 25%, transparent 80%);
+}
+.aurora::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .18) 0 1px, transparent 1px 3px); }
+
+.app { border-radius: 0; border: var(--px) solid var(--line-2); }
+.titlebar { background: var(--bg-2); border-bottom: var(--px) solid var(--line-2); }
+.brand { font: 400 12px/16px var(--pixel); }
+.logo-img { border-radius: 0; box-shadow: none; filter: drop-shadow(2px 2px 0 #05040d); }
+.chip { border-radius: 0; border-width: 2px; }
+.winbtns button.close:hover { background: #e11d48; }
+
+/* menu */
+.body { grid-template-columns: 236px 1fr; }
+.sidebar { background: var(--bg-2); border-right: var(--px) solid var(--line-2); }
+.navlabel { font: 400 12px/16px var(--pixel); letter-spacing: 0; color: var(--accent-3); padding-top: 14px; text-transform: uppercase; }
+.navitem { font: 400 12px/16px var(--pixel); border-radius: 0; min-height: 32px; }
+.navitem span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.navbg { border-radius: 0; background: var(--surface-3); border: 2px solid var(--accent); box-shadow: 3px 3px 0 #05040d; }
+.navbg::before { left: -12px; top: 6px; bottom: 6px; width: 4px; border-radius: 0; background: var(--accent-2); box-shadow: none; }
+.navbg-hover { border-radius: 0; background: rgba(139, 92, 246, .12); }
+.sidecard { border-radius: 0; border: 2px solid var(--line-2); box-shadow: var(--hard); }
+.sidecard b { font: 400 12px/16px var(--num); }
+
+/* títulos */
+.page-head h1 { font: 400 36px/44px var(--pixel); letter-spacing: 0; text-shadow: 3px 3px 0 #05040d, 0 0 0 transparent; }
+.page-head h1::after { content: ''; display: block; width: 48px; height: 4px; margin-top: 8px; background: linear-gradient(90deg, var(--accent) 0 33%, var(--accent-2) 33% 66%, var(--accent-3) 66%); }
+h2.sec { font: 400 24px/32px var(--pixel); letter-spacing: 0; }
+.card-title { font: 400 12px/16px var(--pixel); letter-spacing: 0; }
+.modal h3 { font: 400 24px/32px var(--pixel); }
+.stat-big { font: 400 36px/40px var(--num) !important; letter-spacing: 0; }
+
+
+
+/* cartões e superfícies */
+.card, .spotlight-card.card { border-radius: 0; border: 2px solid var(--line-2); box-shadow: var(--hard); }
+.card-title .ico, .qa-ico { border-radius: 0; box-shadow: 2px 2px 0 #05040d; }
+.tabs { border-radius: 0; border: 2px solid var(--line-2); box-shadow: var(--hard); }
+.tab, .tab .tabbg { border-radius: 0; font: 400 12px/16px var(--pixel); }
+.tab .tabbg { background: var(--accent); box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .35); }
+.toast { border-radius: 0; border: 2px solid var(--line-2); box-shadow: var(--hard); backdrop-filter: none; background: var(--surface-2); }
+.modal { border-radius: 0; border: var(--px) solid var(--accent); box-shadow: 8px 8px 0 #05040d; }
+.overlay { backdrop-filter: none; background: rgba(5, 4, 13, .72); }
+input[type='text'], input[type='search'], input[type='password'], input[type='number'], select, textarea {
+  border-radius: 0; border: 2px solid var(--line-2); background: var(--bg); box-shadow: inset 2px 2px 0 #05040d;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent-2); }
+::-webkit-scrollbar-thumb { border-radius: 0; background: var(--line-2); border: 2px solid var(--bg); background-clip: border-box; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--accent); }
+
+/* botões com bisel 8-bit: claro em cima/esquerda, escuro em baixo/direita; afundam ao clicar */
+.btn { border-radius: 0; border: 2px solid #05040d; font-weight: 600;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .12), inset -3px -3px 0 rgba(0, 0, 0, .35), 3px 3px 0 #05040d; }
+.btn:hover { border-color: #05040d; filter: brightness(1.12); }
+.btn:active { transform: translate(2px, 2px); box-shadow: inset 2px 2px 0 rgba(0, 0, 0, .35), 1px 1px 0 #05040d; }
+.btn.primary { background: var(--accent); border: 2px solid #05040d;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .3), inset -3px -3px 0 rgba(0, 0, 0, .35), 3px 3px 0 #05040d; }
+.btn.primary:hover { box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .3), inset -3px -3px 0 rgba(0, 0, 0, .35), 3px 3px 0 #05040d; filter: brightness(1.12); }
+.btn.danger { background: #7f1d1d; color: #fecaca; }
+.btn.danger:hover { background: #991b1b; }
+.btn.ghost { box-shadow: none; border-color: transparent; }
+.btn.sm { border-radius: 0; }
+.btn.lg, .sb-cta { border-radius: 0; }
+
+/* interruptor quadrado */
+.switch { border-radius: 0; background: var(--bg); border: 2px solid var(--line-2); box-shadow: inset 2px 2px 0 #05040d; width: 46px; height: 24px; }
+.switch::before { border-radius: 0; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--text-3); box-shadow: inset -2px -2px 0 rgba(0, 0, 0, .35); }
+.switch:active::before { width: 16px; }
+.switch.on { background: var(--accent); border-color: #05040d; box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .2); }
+.switch.on::before { transform: translateX(22px); background: #fff; }
+.switch.on:active::before { transform: translateX(22px); }
+
+.check { border-radius: 0; border: 2px solid var(--line-2); }
+.check svg { stroke-linecap: square; stroke-linejoin: miter; }
+.check.on { border-color: #05040d; box-shadow: 2px 2px 0 #05040d; }
+
+/* barras em blocos */
+.bar { height: 12px; border-radius: 0; background: var(--bg); border: 2px solid var(--line-2); padding: 1px; }
+.bar > i { border-radius: 0; transform: none; transition: width .3s steps(4);
+  width: calc(var(--v, 0) * 100%); width: round(down, calc(var(--v, 0) * 100%), 8px);
+  background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 8px); }
+.bar.ok > i { background: repeating-linear-gradient(90deg, var(--ok) 0 6px, transparent 6px 8px); }
+.bar.warn > i { background: repeating-linear-gradient(90deg, var(--warn) 0 6px, transparent 6px 8px); }
+.bar.bad > i { background: repeating-linear-gradient(90deg, var(--bad) 0 6px, transparent 6px 8px); }
+.gauge > svg circle { stroke-linecap: butt; }
+
+.dot { border-radius: 0; }
+.dot.ok, .dot.warn, .dot.bad { box-shadow: none; }
+.risk { border-radius: 0; }
+.empty { font: 400 12px/16px var(--pixel); }
+
+/* texto pixel nítido: só em elementos sem fundo próprio (o filtro binariza a transparência) */
+.brand > span, .navlabel, .navitem > span:not(.ico):not(.badge), .page-head h1, h2.sec, .card-title > .ellipsis, .modal h3,
+.stat-big, .tab > span, .sidecard b, .empty, [style*="--font-display"] { filter: url(#px); letter-spacing: 0 !important; }

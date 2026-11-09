@@ -15,14 +15,16 @@ namespace GrobsSetup
 {
     internal static class Program
     {
-        public const string AppName = "GROBS Optimizer", Version = "1.2.0", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
+        public const string AppName = "GROBS Optimizer", Version = "1.3.0", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
 
         [STAThread]
         static void Main(string[] args)
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            if (args.Contains("--uninstall")) { Uninstaller.Run(args.Contains("--silent")); return; }
+            // Desinstalar.exe é uma cópia deste programa: pelo nome ele já sabe que deve desinstalar (aberto direto, sem argumento)
+            bool asUninstaller = Path.GetFileNameWithoutExtension(Application.ExecutablePath).Equals("Desinstalar", StringComparison.OrdinalIgnoreCase);
+            if (asUninstaller || args.Contains("--uninstall")) { Uninstaller.Run(args.Contains("--silent")); return; }
             if (args.Contains("--silent"))
             {
                 // Instalação sem janela (scripts/implantação):

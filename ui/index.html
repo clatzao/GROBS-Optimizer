@@ -6,6 +6,8 @@
     <title>GROBS Optimizer</title>
   </head>
   <body>
+    <!-- texto pixel: cada pixel aceso ou apagado (o Windows espalha ~1/3 px de cinza nas bordas) -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="px" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncA type="discrete" tableValues="0 0 1" /></feComponentTransfer></filter></svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

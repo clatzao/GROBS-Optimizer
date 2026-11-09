@@ -93,7 +93,7 @@ namespace Grobs
             {
                 int code = ex.Response is HttpWebResponse h ? (int)h.StatusCode : 0;
                 if (ex.Status == WebExceptionStatus.Timeout) throw new InvalidOperationException(p.Local ? "A IA local demorou demais: o modelo é pesado para este PC, principalmente com ele ocupado. Tente com o PC mais livre ou use uma IA online." : "A IA demorou demais para responder. Tente de novo.");
-                throw new InvalidOperationException(code == 429 ? "O limite grátis deste provedor foi atingido agora. Tente de novo em alguns minutos ou escolha outro." :
+                throw new InvalidOperationException(code == 429 || code == 402 ? "O limite grátis deste provedor foi atingido agora. Tente de novo em alguns minutos ou escolha outro." :
                     code == 401 || code == 403 ? "A chave foi recusada pelo provedor. Confira a chave." :
                     p.Local && code == 0 ? "O Ollama não está aberto. Abra o Ollama e tente de novo." :
                     "Não foi possível falar com a IA" + (code > 0 ? " (erro " + code + ")" : ": " + ex.Message));

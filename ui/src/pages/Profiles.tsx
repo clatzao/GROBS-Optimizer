@@ -43,7 +43,7 @@ export default function Profiles() {
             <div className="row" style={{ gap: 14, alignItems: 'flex-start' }}>
               <span className="qa-ico" style={{ color: p.color, background: `${p.color}1f`, width: 52, height: 52 }}><Icon name={p.icon} size={24} /></span>
               <div style={{ flex: 1 }}>
-                <div className="row"><b style={{ font: '650 18px var(--font-display)' }}>{p.title}</b>{active === p.id && <span className="chip ok"><Icon name="check" size={11} />ativo</span>}</div>
+                <div className="row"><b style={{ font: '400 24px/32px var(--font-display)' }}>{p.title}</b>{active === p.id && <span className="chip ok"><Icon name="check" size={11} />ativo</span>}</div>
                 <div className="small muted" style={{ margin: '6px 0 14px' }}>{p.desc}</div>
                 <button className={`btn ${active === p.id ? '' : 'primary'}`} onClick={() => apply(p.id)} disabled={!!busy}>{busy === p.id ? <Spinner size={14} /> : <Icon name="zap" size={15} />}{active === p.id ? 'Aplicar de novo' : 'Aplicar'}</button>
               </div>

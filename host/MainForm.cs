@@ -100,7 +100,9 @@ namespace Grobs
 
         async Task InitWebView()
         {
-            string args = "--disable-background-networking --disable-component-update --disable-sync --no-first-run --disable-extensions " +
+            // --disable-lcd-text: sem ClearType (franjas coloridas); --disable-font-subpixel-positioning: letras em pixel
+            // inteiro (a fonte pixel e o filtro #px da interface dependem disso para não cair em meio pixel)
+            string args = "--disable-lcd-text --disable-font-subpixel-positioning --disable-background-networking--disable-component-update --disable-sync --no-first-run --disable-extensions " +
                 "--disable-features=msSmartScreenProtection,msWebOOUI,msPdfOOUI,Translate,AutofillServerCommunication,msEdgeShopping";
             string debugPort = Environment.GetEnvironmentVariable("GROBS_DEBUG_PORT");
             int dp = Array.IndexOf(Environment.GetCommandLineArgs(), "--debug-port");
@@ -394,6 +396,24 @@ namespace Grobs
                 { "ai.analyze", p => Ai.Analyze() },
                 { "force.inspect", p => ForceDelete.Inspect(Str(p, "path")) },
                 { "force.run", p => ForceDelete.Run(Str(p, "path"), Bool(p, "closeApps")) },
+                { "av.status", p => Antivirus.Status() },
+                { "av.update", p => Antivirus.Update() },
+                { "av.scan", p => Antivirus.Scan(Str(p, "type"), Str(p, "path")) },
+                { "av.cancel", p => Antivirus.Cancel() },
+                { "av.remove", p => Antivirus.Remove(Str(p, "path"), Bool(p, "force")) },
+                { "av.ignore", p => Antivirus.Ignore(Str(p, "path")) },
+                { "av.clearIgnored", p => Antivirus.ClearIgnored() },
+                { "av.setKey", p => Antivirus.SetKey(Str(p, "key")) },
+                { "av.defender", p => Antivirus.Defender(Bool(p, "on")) },
+                { "deep.apps", p => DeepDebloat.Apps() },
+                { "deep.removeApps", p => DeepDebloat.RemoveApps(Arr(p, "names"), Bool(p, "provisioned")) },
+                { "deep.status", p => DeepDebloat.Status() },
+                { "deep.removeEdge", p => DeepDebloat.RemoveEdge() },
+                { "deep.restoreEdge", p => DeepDebloat.RestoreEdgePolicy() },
+                { "deep.removeOneDrive", p => DeepDebloat.RemoveOneDrive() },
+                { "deep.features", p => DeepDebloat.Features() },
+                { "deep.removeFeature", p => DeepDebloat.RemoveFeature(Str(p, "id"), Str(p, "title")) },
+                { "deep.restoreFeature", p => DeepDebloat.RestoreFeature(Str(p, "id")) },
                 { "shell.pickFile", p => (string)Invoke((Func<string>)(() => { using (var d = new OpenFileDialog { Title = "Escolha o arquivo", DereferenceLinks = false }) return d.ShowDialog(this) == DialogResult.OK ? d.FileName : null; })) },
                 { "shell.pickFolder", p => (string)Invoke((Func<string>)(() => { using (var d = new FolderBrowserDialog { Description = "Escolha uma pasta" }) return d.ShowDialog(this) == DialogResult.OK ? d.SelectedPath : null; })) },
 

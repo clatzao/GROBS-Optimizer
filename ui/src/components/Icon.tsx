@@ -1,4 +1,5 @@
-// Ícones em traço (estilo Lucide, licença ISC) — inline para não carregar biblioteca.
+import { PIX } from './pixelIcons';
+// Desenho dos ícones em traço (estilo Lucide, licença ISC); o componente abaixo os converte em pixel art.
 const P: Record<string, string> = {
   dashboard: 'M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z',
   activity: 'M22 12h-4l-3 9L9 3l-3 9H2',
@@ -58,11 +59,55 @@ const P: Record<string, string> = {
 
 export type IconName = keyof typeof P;
 
-export function Icon({ name, size = 18, stroke = 1.8, className, style }: { name: string; size?: number; stroke?: number; className?: string; style?: React.CSSProperties }) {
+// Pixel art: desenhos à mão (pixelIcons.ts) numa grade de 12x12, sempre em escala inteira
+// (1x, 2x, 3x...) para cada pixel ficar nítido. Sem desenho, o traço acima é rasterizado como reserva.
+const G = 12;
+const cache = new Map<string, string>();
+function pixelPath(name: string) {
+  let d = cache.get(name);
+  if (d !== undefined) return d;
+  d = '';
+  const rows = PIX[name];
+  if (rows) {
+    let w = 0;
+    for (const r of rows) w = Math.max(w, r.replace(/\.+$/, '').length);
+    const ox = Math.floor((G - w) / 2), oy = Math.floor((G - rows.length) / 2);
+    rows.forEach((r, y) => {
+      for (let x = 0; x < r.length; x++) {
+        if (r[x] !== '#') continue;
+        let n = 1;
+        while (r[x + n] === '#') n++;
+        d += `M${x + ox} ${y + oy}h${n}v1h-${n}z`;
+        x += n - 1;
+      }
+    });
+  } else try {
+    const c = document.createElement('canvas');
+    c.width = c.height = G;
+    const x = c.getContext('2d', { willReadFrequently: true })!;
+    x.scale(G / 24, G / 24);
+    x.lineWidth = 2.3; x.lineCap = 'square'; x.lineJoin = 'miter';
+    x.stroke(new Path2D(P[name] ?? P.info));
+    const a = x.getImageData(0, 0, G, G).data;
+    for (let y = 0; y < G; y++)
+      for (let i = 0; i < G; i++) {
+        if (a[(y * G + i) * 4 + 3] < 96) continue;
+        let n = 1;
+        while (i + n < G && a[(y * G + i + n) * 4 + 3] >= 96) n++;
+        d += `M${i} ${y}h${n}v1h-${n}z`;
+        i += n - 1;
+      }
+  } catch { /* sem canvas: fica vazio */ }
+  cache.set(name, d);
+  return d;
+}
+
+export function Icon({ name, size = 18, className, style }: { name: string; size?: number; stroke?: number; className?: string; style?: React.CSSProperties }) {
+  const px = G * Math.max(1, Math.floor((size + 4) / G)); // 10–19 → 12 px, 20–31 → 24 px...
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={stroke}
-      strokeLinecap="round" strokeLinejoin="round" className={className} style={style} aria-hidden="true">
-      <path d={P[name] ?? P.info} />
+    <svg width={px} height={px} viewBox={`0 0 ${G} ${G}`} fill="currentColor" shapeRendering="crispEdges"
+      className={className} style={style} aria-hidden="true">
+      <path d={pixelPath(name)} />
     </svg>
   );
 }

@@ -60,7 +60,7 @@ export default function SettingsPage() {
       </div>
       <ModulesCard />
       <Card style={{ marginTop: 16, textAlign: 'center', padding: 28 }}>
-        <div style={{ font: '700 26px var(--font-display)' }}><GradientText colors={['#a78bfa', '#22d3ee', '#f472b6', '#a78bfa']} animationSpeed={8}>GROBS Optimizer</GradientText></div>
+        <div style={{ font: '400 36px/44px var(--font-display)' }}><GradientText colors={['#a78bfa', '#22d3ee', '#f472b6', '#a78bfa']} animationSpeed={8}>GROBS Optimizer</GradientText></div>
         <div className="muted" style={{ margin: '6px 0 14px' }}>Versão {app.version} · {app.proc64 ? '64 bits (x64)' : '32 bits (x86)'} · Windows {app.os64 ? '64 bits' : '32 bits'}</div>
         <div className="small dim" style={{ maxWidth: 640, margin: '0 auto' }}>
           Sem telemetria, sem anúncios e sem limpeza de registro. Tudo roda localmente — a única conexão é a checagem de atualizações no GitHub (desligável).

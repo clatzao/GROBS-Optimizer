@@ -108,7 +108,7 @@ function Hero({ go }: { go: (p: PageId) => void }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="small dim" style={{ textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 6 }}>Saúde do sistema</div>
-          <h2 style={{ font: '650 30px/1.15 var(--font-display)', margin: '0 0 8px', letterSpacing: -0.4 }}>
+          <h2 style={{ font: '400 36px/44px var(--font-display)', margin: '0 0 8px' }}>
             {busy ? 'Analisando seu PC…' : info ? <GradientText colors={[...info.colors, info.colors[0]]} animationSpeed={6}>{info.label}</GradientText> : <GradientText colors={['#a78bfa', '#22d3ee', '#a78bfa']} animationSpeed={6}>Vamos verificar seu PC</GradientText>}
           </h2>
           <p className="muted" style={{ margin: '0 0 18px', maxWidth: 520 }}>
