@@ -266,7 +266,7 @@ namespace Grobs
             {
                 { "app.info", p => new Dictionary<string, object> {
                     { "version", Program.Version }, { "admin", Program.IsAdmin }, { "proc64", Environment.Is64BitProcess },
-                    { "os64", Environment.Is64BitOperatingSystem }, { "settings", Settings.All() }, { "dev", _devUrl != null } } },
+                    { "os64", Environment.Is64BitOperatingSystem }, { "settings", Settings.All() }, { "dev", _devUrl != null }, { "hidden", _startInTray } } },
                 { "app.elevate", p => { bool ok = Program.Elevate(); if (ok) BeginInvoke((Action)(() => { _exiting = true; Application.Exit(); })); return ok; } },
                 { "app.setting", p => { Settings.Set(Str(p, "key"), p.ContainsKey("value") ? p["value"] : null); if (Str(p, "key") == "interval") RestartTimer(); if (Str(p, "key") == "killHotkey") BeginInvoke((Action)ApplyHotkey); return Settings.All(); } },
                 { "app.openLog", p => { var f = Path.Combine(Program.DataDir, "erros.log"); if (File.Exists(f)) System.Diagnostics.Process.Start(f); return true; } },

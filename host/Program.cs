@@ -11,7 +11,7 @@ namespace Grobs
 {
     internal static class Program
     {
-        public const string Version = "1.3.1";
+        public const string Version = "1.3.2";
         public static readonly bool IsAdmin = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
         public static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GROBS");
         public static MainForm Window;
@@ -129,6 +129,7 @@ namespace Grobs
             { "autoUpdate", true },
             { "diskAlerts", true },
             { "autoRestorePoint", true },
+            { "intro", true },
         };
 
         public static Dictionary<string, object> All()

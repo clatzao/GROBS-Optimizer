@@ -9,6 +9,7 @@ import { pct } from './format';
 import Dashboard from './pages/Dashboard';
 import logo from './assets/logo.png';
 import ErrorBoundary from './components/ErrorBoundary';
+import Intro from './components/Intro';
 
 // Páginas carregadas sob demanda: a inicial abre mais rápido.
 const MonitorPage = lazy(() => import('./pages/Monitor'));
@@ -151,6 +152,8 @@ export default function App() {
   const [update, setUpdate] = useState<string | null>(null);
   useEffect(() => on('update', (u: { version: string; available: boolean }) => { if (u?.available) { setUpdate(u.version); toast(`GROBS Optimizer ${u.version} disponível — atualize em Configurações`, 'info'); } }), []);
   const anim = app?.settings.animations ?? 'full';
+  // intro: sempre ao abrir (pula com clique/tecla); não quando o app inicia escondido na bandeja
+  const [intro, setIntro] = useState(() => anim !== 'off' && (app?.settings as any)?.intro !== false && !(app as any)?.hidden);
 
   useEffect(() => on('maximized', (m: boolean) => setMaximized(!!m)), []);
   useEffect(() => { document.documentElement.dataset.anim = anim; }, [anim]);
@@ -197,6 +200,7 @@ export default function App() {
   const content = (
     <div key={anim} className={`app ${maximized ? "max" : ""}`}>
       <div className="aurora"><i /><i /><i /></div>
+      {intro && <Intro version={app?.version ?? ''} onDone={() => setIntro(false)} />}
       <TitleBar maximized={maximized} update={update} go={setPage} />
       <div className="body">
         <Sidebar page={page} go={setPage} />

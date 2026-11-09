@@ -138,3 +138,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-2); }
 /* texto pixel nítido: só em elementos sem fundo próprio (o filtro binariza a transparência) */
 .brand > span, .navlabel, .navitem > span:not(.ico):not(.badge), .page-head h1, h2.sec, .card-title > .ellipsis, .modal h3,
 .stat-big, .tab > span, .sidecard b, .empty, [style*="--font-display"] { filter: url(#px); letter-spacing: 0 !important; }
+
+/* ------------------------------------------------------------ intro ao abrir */
+.intro { position: fixed; inset: 0; z-index: 1000; background: #05040d; display: grid; place-items: center; cursor: pointer; transition: opacity .3s steps(3); }
+.intro.out { opacity: 0; }
+.intro::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .25) 0 1px, transparent 1px 3px); }
+.intro-boot { position: absolute; left: 32px; top: 32px; right: 32px; font: 400 12px/20px var(--pixel); color: var(--text-2); filter: url(#px); }
+.intro-boot .head { color: var(--accent-2); }
+.intro-boot .ok { color: var(--ok); }
+.intro-cursor { color: var(--accent-2); animation: intro-blink .5s steps(1) infinite; }
+@keyframes intro-blink { 50% { opacity: 0; } }
+.intro-logo { display: grid; justify-items: center; gap: 16px; }
+.intro-logo img { filter: drop-shadow(4px 4px 0 #000); }
+.intro-name { font: 400 36px/44px var(--pixel); color: var(--text); text-shadow: 3px 3px 0 var(--accent); min-height: 44px; filter: url(#px); }
+.intro-sub { font: 400 12px/16px var(--pixel); color: var(--accent-3); letter-spacing: 0; visibility: hidden; filter: url(#px); }
+.intro-sub.show { visibility: visible; }
+.intro-skip { position: absolute; bottom: 20px; font: 400 12px/16px var(--pixel); color: var(--text-3); filter: url(#px); }
