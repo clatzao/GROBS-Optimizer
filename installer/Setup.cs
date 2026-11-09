@@ -15,7 +15,7 @@ namespace GrobsSetup
 {
     internal static class Program
     {
-        public const string AppName = "GROBS Optimizer", Version = "1.3.0", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
+        public const string AppName = "GROBS Optimizer", Version = "1.3.1", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
 
         [STAThread]
         static void Main(string[] args)
@@ -316,6 +316,24 @@ namespace GrobsSetup
                 if (startup) run.SetValue("GROBS Optimizer", "\"" + exe + "\" --tray"); else run.DeleteValue("GROBS Optimizer", false);
             }
             progress(0.95f, "Finalizando…");
+            RefreshIcons(exe, startMenu, desk);
+        }
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern void SHChangeNotify(int eventId, uint flags, string item1, IntPtr item2);
+
+        /// <summary>O Explorador guarda o desenho antigo do ícone em cache; isto o obriga a ler o ícone novo do exe.</summary>
+        static void RefreshIcons(params string[] paths)
+        {
+            try
+            {
+                foreach (var p in paths.Where(File.Exists)) SHChangeNotify(0x00002000 /* UPDATEITEM */, 0x0005 /* PATHW */, p, IntPtr.Zero);
+                SHChangeNotify(0x08000000 /* ASSOCCHANGED */, 0x1000 /* FLUSH */, null, IntPtr.Zero);
+                string ie4 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "ie4uinit.exe");
+                if (File.Exists(ie4))
+                    using (var p = Process.Start(new ProcessStartInfo(ie4, Environment.OSVersion.Version.Major >= 10 ? "-show" : "-ClearIconCache") { UseShellExecute = false, CreateNoWindow = true }))
+                        p?.WaitForExit(10000);
+            }
+            catch { }
         }
 
         static void Shortcut(string lnk, string target, string workDir)
