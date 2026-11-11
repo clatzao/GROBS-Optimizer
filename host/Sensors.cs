@@ -111,6 +111,20 @@ namespace Grobs
                 Update();
                 foreach (var h in _pc.Hardware)
                 {
+                    var watts = h.Sensors.Where(s => s.SensorType == SensorType.Power && s.Value.HasValue && s.Value > 0 && s.Value < 1500).ToList();
+                    if (watts.Count > 0)
+                    {
+                        if (h.HardwareType == HardwareType.Cpu)
+                        {
+                            var pkg = watts.FirstOrDefault(s => s.Name.Contains("Package")) ?? watts.OrderByDescending(s => s.Value).First();
+                            stats["cpuPower"] = Math.Round((double)pkg.Value.Value, 1);
+                        }
+                        else if ((h.HardwareType == HardwareType.GpuNvidia || h.HardwareType == HardwareType.GpuAmd) && !stats.ContainsKey("gpuPower"))
+                        {
+                            var g = watts.FirstOrDefault(s => s.Name.Contains("Package") || s.Name.Contains("Board") || s.Name.Contains("Total")) ?? watts.OrderByDescending(s => s.Value).First();
+                            stats["gpuPower"] = Math.Round((double)g.Value.Value, 1);
+                        }
+                    }
                     var temps = h.Sensors.Where(s => s.SensorType == SensorType.Temperature && s.Value.HasValue && s.Value > 0 && s.Value < 125).ToList();
                     if (temps.Count == 0) continue;
                     if (h.HardwareType == HardwareType.Cpu)
@@ -148,7 +162,7 @@ namespace Grobs
                     Stop(); Start(); // reabre com acesso aos sensores
                     _pawnState = PawnIOVersion() != null ? "done" : "error: o instalador não concluiu";
                 }
-                catch (Exception ex) { _pawnState = "error: " + ex.Message; }
+                catch (Exception ex) { _pawnState = "error: " + ex.Message; if (_pc == null) Start(); }
                 Program.Window?.Notify("pawnio", PawnStatus());
             });
             return PawnStatus();

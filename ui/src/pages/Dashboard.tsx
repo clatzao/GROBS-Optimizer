@@ -184,8 +184,10 @@ function LiveGrid() {
   const unit = useStore(appStore, a => a?.settings.tempUnit ?? 'C');
   if (!s) return <div className="grid g3">{[0, 1, 2, 3, 4, 5].map(i => <Card key={i} style={{ height: 150, display: 'grid', placeItems: 'center' }}><Spinner color="var(--text-3)" /></Card>)}</div>;
   const hasTemp = s.cpuTemp > 0 || s.gpuTemp > 0;
+  const hasPower = s.pcPower !== undefined;
+  const upTile = <LiveTile icon="clock" label="Tempo ligado" color="#60a5fa" value={uptime(s.uptime)} sub={`${(s.threads ?? 0).toLocaleString('pt-BR')} threads`} data={h.cpu} max={100} />;
   return (
-    <Stagger className="grid g3">
+    <Stagger className={`grid ${hasPower ? 'g4' : 'g3'}`}>
       <LiveTile icon="cpu" label="Processador" color="#8b5cf6" value={pct(s.cpu)} sub={`${mhz(s.cpuMhz)} · ${s.procs ?? '—'} processos`} data={h.cpu} max={100} />
       <LiveTile icon="memory" label="Memória" color="#22d3ee" value={pct(s.mem)} sub={`${bytes(s.memUsed)} de ${bytes(s.memTotal)}`} data={h.mem} max={100} />
       <LiveTile icon="gpu" label="Placa de vídeo" color="#f472b6" value={pct(s.gpu)} sub={s.gpuMem > 0 ? `${bytes(s.gpuMem)} de VRAM em uso` : 'Uso do motor 3D'} data={h.gpu} max={100} />
@@ -193,7 +195,10 @@ function LiveGrid() {
       <LiveTile icon="wifi" label="Rede" color="#34d399" value={bits(s.netDown)} sub={`↑ ${bits(s.netUp)}`} data={h.netDown} />
       {hasTemp
         ? <LiveTile icon="thermo" label="Temperatura" color="#fb7185" value={temp(s.cpuTemp > 0 ? s.cpuTemp : s.gpuTemp, unit)} sub={s.cpuTemp > 0 ? `CPU (${s.cpuTempSrc})${s.gpuTemp > 0 ? ` · GPU ${temp(s.gpuTemp, unit)}` : ''}` : `GPU (${s.gpuTempSrc})`} data={h.cpuTemp} max={100} />
-        : <LiveTile icon="clock" label="Tempo ligado" color="#60a5fa" value={uptime(s.uptime)} sub={`${(s.threads ?? 0).toLocaleString('pt-BR')} threads`} data={h.cpu} max={100} />}
+        : upTile}
+      {hasPower && <LiveTile icon="zap" label="Consumo" color="#facc15" value={`${Math.round(s.pcPower!)} W`}
+        sub={s.pcPowerSrc === 'bateria' ? 'notebook na bateria (medido)' : `CPU ${s.cpuPower ?? '—'} W${s.gpuPower !== undefined ? ` · GPU ${s.gpuPower} W` : ''} · PC estimado`} data={h.pcPower} />}
+      {hasPower && hasTemp && upTile}
     </Stagger>
   );
 }

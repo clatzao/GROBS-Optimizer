@@ -17,6 +17,9 @@ namespace Grobs
         bool _lhm;
         int _tick;
         double _lhmCpuTemp = double.NaN;
+        // zona térmica ACPI: em muitos PCs de mesa é um valor fixo da placa-mãe (ex.: sempre 30 °C). Só vale depois de ver variar.
+        double _acpiLo = double.MaxValue, _acpiHi = double.MinValue;
+        double _battW = double.NaN;
         readonly object _lock = new object();
 
         public Monitor()
@@ -262,7 +265,13 @@ namespace Grobs
                 else
                 {
                     var zones = Array(_thermal, true).Select(k => k.Value - 273.15).Where(v => v > 5 && v < 125).ToList();
-                    if (zones.Count > 0) { cpuTemp = zones.Max(); cpuSrc = "ACPI"; }
+                    if (zones.Count > 0)
+                    {
+                        double z = zones.Max();
+                        _acpiLo = Math.Min(_acpiLo, z); _acpiHi = Math.Max(_acpiHi, z);
+                        if (_acpiHi - _acpiLo >= 1) { cpuTemp = z; cpuSrc = "ACPI"; }
+                        else r["cpuTempFixed"] = true; // sensor parado: não mostra um número falso
+                    }
                 }
                 r["cpuTemp"] = Clean(cpuTemp);
                 r["cpuTempSrc"] = cpuSrc;
@@ -287,8 +296,44 @@ namespace Grobs
                 }
                 r["uptime"] = Native.GetTickCount64() / 1000;
                 if (Sensors.Open) { try { Sensors.Merge(r); } catch { } }
+                Power_(r);
                 return r;
             }
+        }
+
+        /// <summary>
+        /// Consumo em watts. CPU e GPU vêm de sensor (RAPL da CPU pelo LibreHardwareMonitor, NVML da NVIDIA).
+        /// O PC inteiro é estimado: CPU + GPU + o resto (placa-mãe, memória, discos, ventoinhas) e a perda da fonte.
+        /// No notebook na bateria o Windows informa a descarga real.
+        /// </summary>
+        void Power_(Dictionary<string, object> r)
+        {
+            bool laptop = r.ContainsKey("battery");
+            if (laptop && !(r["charging"] is bool c && c))
+            {
+                if (_tick % 5 == 1) _battW = BatteryDrain();
+                if (!double.IsNaN(_battW) && _battW > 0) { r["pcPower"] = Math.Round(_battW, 1); r["pcPowerSrc"] = "bateria"; return; }
+            }
+            if (!r.ContainsKey("cpuPower")) return; // sem a CPU não dá para estimar o total
+            double cpu = Convert.ToDouble(r["cpuPower"]);
+            double gpu = r.ContainsKey("gpuPower") ? Convert.ToDouble(r["gpuPower"]) : 0;
+            double rest = laptop ? 6 : 30;
+            double wall = (cpu + gpu + rest) / (laptop ? 0.9 : 0.85);
+            r["pcPower"] = Math.Round(wall, 1); r["pcPowerSrc"] = "estimado";
+        }
+
+        static double BatteryDrain()
+        {
+            try
+            {
+                using (var s = new ManagementObjectSearcher(@"root\wmi", "SELECT DischargeRate FROM BatteryStatus"))
+                {
+                    double mw = 0;
+                    foreach (ManagementObject o in s.Get()) mw += Convert.ToDouble(o["DischargeRate"] ?? 0);
+                    return mw > 0 ? mw / 1000.0 : double.NaN;
+                }
+            }
+            catch { return double.NaN; }
         }
 
         static int CoreIndex(string name)

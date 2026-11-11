@@ -20,12 +20,12 @@ namespace Grobs
             public bool Regen; // o programa baixa ou recria sozinho
         }
 
-        sealed class Rule { public string Id, Title, Why, Path, Risk; public string[] Procs; public bool Regen = true; }
+        internal sealed class Rule { public string Id, Title, Why, Path, Risk; public string[] Procs; public bool Regen = true; }
 
         static string L => Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         static string H => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        static IEnumerable<Rule> Rules()
+        internal static IEnumerable<Rule> Rules()
         {
             Func<string, string, string, string, string[], Rule> safe = (id, t, w, p, procs) => new Rule { Id = id, Title = t, Why = w, Path = p, Risk = "safe", Procs = procs };
             Func<string, string, string, string, string[], Rule> review = (id, t, w, p, procs) => new Rule { Id = id, Title = t, Why = w, Path = p, Risk = "review", Procs = procs };
@@ -82,7 +82,7 @@ namespace Grobs
 
         static void Phase(string p) { _phase = p; Program.Window?.Notify("diskClean", Status()); }
 
-        static long SizeOf(string dir)
+        internal static long SizeOf(string dir)
         {
             long total = 0;
             Native.WIN32_FIND_DATA fd;
@@ -229,7 +229,7 @@ namespace Grobs
         // ---------------------------------------------------------------- apagar
 
         /// <summary>Apaga sem seguir links. Devolve os bytes realmente removidos; o que estiver em uso fica.</summary>
-        static long Wipe(string dir, bool removeRoot, ref int failed)
+        internal static long Wipe(string dir, bool removeRoot, ref int failed)
         {
             long freed = 0;
             FileSystemInfo[] entries;

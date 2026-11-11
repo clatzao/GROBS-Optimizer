@@ -66,17 +66,48 @@ function Overview() {
             <div><div className="small dim">GPU {s.gpuTempSrc && `(${s.gpuTempSrc})`}</div><div className={`stat-big ${s.gpuTemp > 0 ? level(s.gpuTemp, 80, 92) + '-t' : ''}`} style={{ fontSize: 26 }}>{temp(s.gpuTemp, unit)}</div></div>
           </div>
           {s.cpuTemp > 0 && <div style={{ marginTop: 10 }}><Spark data={h.cpuTemp} max={100} height={50} color="#fb7185" /></div>}
-          {s.cpuTemp < 0 && <p className="small dim" style={{ marginBottom: 0 }}>Este computador não expõe a temperatura da CPU ao Windows sem driver. Para leitura precisa, abra o LibreHardwareMonitor — o GROBS lê os sensores dele automaticamente.</p>}
+          {s.cpuTemp < 0 && <TempHelp fixed={!!s.cpuTempFixed} />}
           <dl className="kv" style={{ marginTop: 12 }}>
             {s.gpuFan !== undefined && <><dt>Ventoinha GPU</dt><dd>{s.gpuFan}%</dd></>}
+            {s.cpuPower !== undefined && <><dt>Consumo CPU</dt><dd>{s.cpuPower} W</dd></>}
             {s.gpuPower !== undefined && <><dt>Consumo GPU</dt><dd>{s.gpuPower} W</dd></>}
             {s.battery !== undefined && <><dt>Bateria</dt><dd>{s.battery}%{s.charging ? ' · carregando' : ''}</dd></>}
             <dt>Ligado há</dt><dd>{uptime(s.uptime)}</dd>
           </dl>
         </Card>
+        <Card style={{ gridColumn: '1 / -1' }}>
+          <CardTitle icon="zap" color="#facc15" right={<span className="small dim">últimos 60 s</span>}>Consumo de energia</CardTitle>
+          {s.pcPower === undefined ? <p className="small dim" style={{ margin: 0 }}>Sem leitura de consumo. A CPU só informa watts com o driver de sensores (PawnIO) e o GROBS aberto como administrador.</p> : <>
+            <div className="row wrap" style={{ gap: 28, marginBottom: 10 }}>
+              <div><div className="small dim">PC inteiro ({s.pcPowerSrc === 'bateria' ? 'medido na bateria' : 'estimado'})</div><div className="stat-big" style={{ fontSize: 26, color: '#facc15' }}>{Math.round(s.pcPower)} W</div></div>
+              {s.cpuPower !== undefined && <div><div className="small dim">CPU (sensor)</div><div className="stat-big" style={{ fontSize: 22, color: '#a78bfa' }}>{s.cpuPower} W</div></div>}
+              {s.gpuPower !== undefined && <div><div className="small dim">GPU (sensor)</div><div className="stat-big" style={{ fontSize: 22, color: '#f472b6' }}>{s.gpuPower} W</div></div>}
+            </div>
+            <Spark data={h.pcPower} height={90} color="#facc15" max={Math.max(10, ...h.pcPower) * 1.15} />
+            <div style={{ marginTop: -90, pointerEvents: 'none' }}><Spark data={h.cpuPower} height={90} color="#a78bfa" fill={false} max={Math.max(10, ...h.pcPower) * 1.15} /></div>
+            {s.gpuPower !== undefined && <div style={{ marginTop: -90, pointerEvents: 'none' }}><Spark data={h.gpuPower} height={90} color="#f472b6" fill={false} max={Math.max(10, ...h.pcPower) * 1.15} /></div>}
+            <div className="small dim" style={{ marginTop: 8 }}>
+              <span style={{ color: '#facc15' }}>■</span> PC · <span style={{ color: '#a78bfa' }}>■</span> CPU{s.gpuPower !== undefined && <> · <span style={{ color: '#f472b6' }}>■</span> GPU</>}.
+              {s.pcPowerSrc !== 'bateria' && ' O total soma CPU e GPU medidas, uma média para placa-mãe, memória, discos e ventoinhas, e a perda da fonte. Sem medidor de tomada, é uma estimativa.'}
+            </div>
+          </>}
+        </Card>
       </div>
     </>
   );
+}
+
+function TempHelp({ fixed }: { fixed: boolean }) {
+  const admin = useStore(appStore, a => a?.admin);
+  const [busy, setBusy] = useState(false);
+  async function install() { setBusy(true); const r = await run(call<any>('sensors.pawnio')); if (r) toast('Instalando o driver de sensores…', 'info'); setTimeout(() => setBusy(false), 15000); }
+  return <div style={{ marginTop: 6 }}>
+    <p className="small dim" style={{ margin: '0 0 8px' }}>{fixed
+      ? 'O sensor da placa-mãe fica parado num valor fixo e não acompanha a CPU, então o GROBS não mostra esse número. A temperatura real precisa do driver de sensores PawnIO (oficial, assinado).'
+      : 'Este computador não informa a temperatura da CPU ao Windows sem o driver de sensores PawnIO.'}</p>
+    {admin ? <button className="btn sm primary" onClick={install} disabled={busy}>{busy ? <Spinner size={12} /> : <Icon name="arrowDown" size={13} />}Instalar driver de sensores</button>
+      : <span className="small warn-t">Abra o GROBS como administrador para ler os sensores.</span>}
+  </div>;
 }
 
 function Health() {

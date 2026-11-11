@@ -86,7 +86,17 @@ namespace Grobs
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 try { _monitor = new Monitor(); _monitor.Sample(); } catch (Exception ex) { Program.Log(ex); }
-                if (Program.IsAdmin && Settings.Get<bool>("sensorsAuto")) Sensors.Start(); // temperatura real da CPU no painel
+                if (Program.IsAdmin && Settings.Get<bool>("sensorsAuto"))
+                {
+                    // sem o driver PawnIO a CPU não informa temperatura nem consumo: instala sozinho (uma tentativa por dia)
+                    string today = DateTime.Now.ToString("yyyy-MM-dd");
+                    if (Sensors.PawnIOVersion() == null && Settings.Get<string>("pawnioTried") != today)
+                    {
+                        Settings.Set("pawnioTried", today);
+                        Sensors.InstallPawnIO(); // abre os sensores ao terminar, com ou sem sucesso
+                    }
+                    else Sensors.Start(); // temperatura real da CPU no painel
+                }
                 Games.Watcher.Refresh(); // Turbo automático, Modo Jogo e gravação de FPS
                 MemoryCleaner.StartAuto();
                 Responsive.Restore();
@@ -397,6 +407,14 @@ namespace Grobs
 
                 { "shell.reveal", p => { var f = Str(p, "path"); if (File.Exists(f) || Directory.Exists(f)) System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + f + "\""); return true; } },
                 { "dclean.start", p => DiskClean.Start() },
+                { "fullscan.drives", p => FullScan.Drives() },
+                { "fullscan.start", p => FullScan.Start(Arr(p, "roots")) },
+                { "fullscan.status", p => FullScan.Status() },
+                { "fullscan.cancel", p => FullScan.Cancel() },
+                { "fullscan.children", p => FullScan.Children(Str(p, "path")) },
+                { "fullscan.files", p => FullScan.Files(Str(p, "id")) },
+                { "fullscan.delete", p => FullScan.Delete(Arr(p, "ids")) },
+                { "fullscan.service", p => FullScan.ServiceSet(Str(p, "name"), Bool(p, "disable")) },
                 { "dclean.status", p => DiskClean.Status() },
                 { "dclean.delete", p => DiskClean.Delete(Arr(p, "ids")) },
                 { "ai.cleanup", p => Ai.Cleanup() },

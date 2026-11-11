@@ -6,7 +6,7 @@ export type Stats = {
   mem: number; memTotal: number; memUsed: number; commit?: number; commitLimit?: number; cached?: number;
   procs?: number; threads?: number; handles?: number;
   disk: number; diskRead: number; diskWrite: number; netDown: number; netUp: number;
-  gpu: number; gpuMem: number; gpuShared: number; gpuFan?: number; gpuPower?: number;
+  gpu: number; gpuMem: number; gpuShared: number; gpuFan?: number; gpuPower?: number; cpuPower?: number; pcPower?: number; pcPowerSrc?: 'estimado' | 'bateria'; cpuTempFixed?: boolean;
   cpuTemp: number; cpuTempSrc: string; gpuTemp: number; gpuTempSrc: string;
   battery?: number; charging?: boolean; uptime: number;
 };
@@ -29,10 +29,10 @@ function createStore<T>(initial: T) {
 }
 
 export const HISTORY = 60;
-export type History = Record<'cpu' | 'mem' | 'gpu' | 'disk' | 'netDown' | 'netUp' | 'cpuTemp', number[]>;
+export type History = Record<'cpu' | 'mem' | 'gpu' | 'disk' | 'netDown' | 'netUp' | 'cpuTemp' | 'pcPower' | 'cpuPower' | 'gpuPower', number[]>;
 
 export const statsStore = createStore<Stats | null>(null);
-export const historyStore = createStore<History>({ cpu: [], mem: [], gpu: [], disk: [], netDown: [], netUp: [], cpuTemp: [] });
+export const historyStore = createStore<History>({ cpu: [], mem: [], gpu: [], disk: [], netDown: [], netUp: [], cpuTemp: [], pcPower: [], cpuPower: [], gpuPower: [] });
 export const appStore = createStore<AppInfo | null>(null);
 export const boostStore = createStore<boolean>(false);
 

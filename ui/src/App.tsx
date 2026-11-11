@@ -39,9 +39,10 @@ const Repair = lazy(() => import('./pages/Repair'));
 const Bench = lazy(() => import('./pages/Bench'));
 const Profiles = lazy(() => import('./pages/Profiles'));
 const Antivirus = lazy(() => import('./pages/Antivirus'));
+const FullScan = lazy(() => import('./pages/FullScan'));
 
 export type PageId = 'dash' | 'monitor' | 'diagnose' | 'clean' | 'optimize' | 'services' | 'debloat' | 'visual' | 'update' | 'security'
-  | 'gamer' | 'overlay' | 'oc' | 'drivers' | 'apps' | 'disk' | 'beautify' | 'tools' | 'settings' | 'smart' | 'deepclean' | 'perf' | 'disks' | 'repair' | 'bench' | 'profiles' | 'antivirus';
+  | 'gamer' | 'overlay' | 'oc' | 'drivers' | 'apps' | 'disk' | 'beautify' | 'tools' | 'settings' | 'smart' | 'deepclean' | 'perf' | 'disks' | 'repair' | 'bench' | 'profiles' | 'antivirus' | 'fullscan';
 
 // mod = módulo escolhido no instalador (sem lista de módulos = tudo instalado)
 const NAV: { id: PageId; label: string; icon: string; section?: string; mod?: string }[] = [
@@ -51,6 +52,7 @@ const NAV: { id: PageId; label: string; icon: string; section?: string; mod?: st
   { id: 'diagnose', label: 'Diagnóstico', icon: 'heart', mod: 'repair' },
   { id: 'repair', label: 'Reparar o Windows', icon: 'wrench', mod: 'repair' },
   { id: 'clean', label: 'Limpeza', icon: 'broom', section: 'Manutenção', mod: 'clean' },
+  { id: 'fullscan', label: 'Leitura completa', icon: 'search', mod: 'clean' },
   { id: 'deepclean', label: 'Limpeza com IA', icon: 'sparkles', mod: 'clean' },
   { id: 'optimize', label: 'Otimização', icon: 'rocket', mod: 'optimize' },
   { id: 'profiles', label: 'Perfis 1 clique', icon: 'layers', mod: 'optimize' },
@@ -179,6 +181,7 @@ export default function App() {
       case 'optimize': return <Optimize />;
       case 'security': return <Security />;
       case 'antivirus': return <Antivirus />;
+      case 'fullscan': return <FullScan />;
       case 'apps': return <Apps />;
       case 'disk': return <Disk />;
       case 'tools': return <Tools />;
