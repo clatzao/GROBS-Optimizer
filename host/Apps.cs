@@ -346,6 +346,18 @@ namespace Grobs
 
         public static object FlushDns() { Native.DnsFlushResolverCache(); return true; }
 
+        /// <summary>Abre o WinUtil do Chris Titus (versão estável) com o comando oficial do site, como administrador.</summary>
+        public static object WinUtil()
+        {
+            var psi = new ProcessStartInfo(Power.Sys(@"WindowsPowerShell\v1.0\powershell.exe"),
+                "-NoProfile -ExecutionPolicy Bypass -Command \"irm 'https://christitus.com/win' | iex\"");
+            // já como administrador: cria o processo direto (o ShellExecute é recusado no processo elevado); o console abre numa janela própria
+            if (Program.IsAdmin) psi.UseShellExecute = false;
+            else { psi.UseShellExecute = true; psi.Verb = "runas"; } // o WinUtil exige administrador
+            Process.Start(psi)?.Dispose();
+            return true;
+        }
+
         public static object RestartExplorer()
         {
             foreach (var p in Process.GetProcessesByName("explorer")) using (p) { try { p.Kill(); p.WaitForExit(3000); } catch { } }

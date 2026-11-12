@@ -31,11 +31,12 @@ export default function Tools() {
     { id: 'dns', icon: 'globe', color: '#22d3ee', title: 'Limpar cache DNS', desc: 'Resolve sites que não abrem após mudança de endereço.', run: () => act('dns', 'tools.flushDns', 'Cache DNS limpo') },
     { id: 'explorer', icon: 'refresh', color: '#a78bfa', title: 'Reiniciar o Explorer', desc: 'Corrige barra de tarefas ou área de trabalho travadas.', run: () => act('explorer', 'tools.restartExplorer', 'Explorer reiniciado') },
     { id: 'battery', icon: 'battery', color: '#34d399', title: 'Relatório da bateria', desc: 'Capacidade atual vs. original, ciclos e histórico de uso (notebooks). Abre no navegador.', run: () => act('battery', 'battery.report', 'Relatório gerado') },
+    { id: 'winutil', icon: 'wrench', color: '#fbbf24', title: 'WinUtil (Chris Titus)', desc: 'Abre a ferramenta gratuita do Chris Titus: instala programas, ajustes, consertos e Windows Update. Baixa a versão estável do site oficial e abre numa janela própria.', run: () => act('winutil', 'tools.winutil', 'Abrindo o WinUtil… a janela aparece em alguns segundos') },
   ];
 
   return (
     <div className="page">
-      <PageHead title="Utilitários" sub="Ferramentas do próprio Windows, a um clique." />
+      <PageHead title="Utilitários" sub="Ferramentas úteis, a um clique." />
       <div className="grid g3">
         {tools.map(t => (
           <GlareHover key={t.id} background="var(--surface)" borderColor="rgba(255,255,255,0.07)" borderRadius="16px" width="100%" height="100%" glareOpacity={0.14} glareSize={260}>

@@ -379,6 +379,7 @@ namespace Grobs
 
                 { "tools.restorePoint", p => Tools.CreateRestorePoint("GROBS Optimizer") },
                 { "tools.flushDns", p => Tools.FlushDns() },
+                { "tools.winutil", p => Tools.WinUtil() },
                 { "tools.restartExplorer", p => Tools.RestartExplorer() },
                 { "tools.repair", p => Tools.RepairSystem(Str(p, "which")) },
                 { "tools.ping", p => Tools.Ping(Str(p, "host")) },

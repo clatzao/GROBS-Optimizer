@@ -15,7 +15,7 @@ namespace GrobsSetup
 {
     internal static class Program
     {
-        public const string AppName = "GROBS Optimizer", Version = "1.5.0", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
+        public const string AppName = "GROBS Optimizer", Version = "1.5.1", UninstallKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\GROBSOptimizer";
 
         [STAThread]
         static void Main(string[] args)
